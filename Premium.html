@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
         :root { --panel-bg: rgba(10, 10, 10, 0.95); --accent: #ffd700; --cyan: #00e5ff; }
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; transition: background 1.5s ease; color: white; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; transition: background 1.5s ease; color: white; }
         
         body.bg-black { background: #000; }
         body.bg-deep { background: radial-gradient(circle at center, #050a1f 0%, #000 100%); }
@@ -27,18 +27,22 @@
             position: fixed; inset: 0; background: #000; z-index: 1000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .start-btn { padding: 15px 60px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+        .start-btn { padding: 15px 60px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; box-shadow: 0 6px 20px rgba(255,136,0,0.25); color:#111; }
+        .start-btn:hover { transform: translateY(-3px); transition: transform 0.2s ease; }
 
         #ui-panel {
             position: fixed; top: 20px; right: 20px; width: 280px; background: var(--panel-bg);
             padding: 20px; border-radius: 20px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
             display: none; backdrop-filter: blur(12px); max-height: 85vh; overflow-y: auto;
         }
+        /* When shown from the gear in fullscreen we keep same panel but z-index above */
+        #ui-panel.fullscreen-open { z-index: 120; }
+
         .panel-title { color: var(--accent); font-weight: bold; margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
         .control-group { margin-bottom: 15px; }
         .control-group label { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 6px; }
         
-        button.tool-btn { width: 100%; padding: 10px; background: #222; border: 1px solid #333; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 5px; font-size: 12px; transition: 0.3s; }
+        button.tool-btn { width: 100%; padding: 10px; background: #222; border: 1px solid #333; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 5px; font-size: 12px; transition: background 0.3s ease; }
         button.tool-btn:hover { background: #333; }
         button.special-btn { background: var(--cyan); color: #000; font-weight: bold; border: none; }
         
@@ -56,9 +60,68 @@
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
-        #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s; }
-        #photo-modal.active { transform: translate(-50%, -50%) scale(1); }
-        #photo-modal img { max-width: 80vw; max-height: 70vh; border: 5px solid white; border-radius: 8px; }
+        /* Settings gear shown during fullscreen */
+        #settings-btn {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            width: 48px;
+            height: 48px;
+            display: none;              /* shown only in fullscreen */
+            align-items: center;
+            justify-content: center;
+            z-index: 110;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--accent);
+            font-size: 22px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.6);
+            backdrop-filter: blur(6px);
+        }
+        #settings-btn:hover { transform: translateY(-2px); transition: transform 0.12s ease; }
+
+        /* Photo modal + cloud-style caption */
+        #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events: none; }
+        #photo-modal.active { transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
+        #photo-modal img { max-width: 80vw; max-height: 70vh; border: 5px solid rgba(255,255,255,0.9); border-radius: 10px; display:block; box-shadow: 0 10px 30px rgba(0,0,0,0.6); }
+
+        /* Cloud-style caption: bold, soft white/blue gradient, fluffy text-shadow, slight glow and inner sheen */
+        #photo-modal #photo-caption {
+            display: inline-block;
+            font-weight: 800;             /* bold */
+            font-size: 16px;
+            line-height: 1;
+            padding: 8px 14px;
+            color: #0b2340;               /* dark blue text color for contrast */
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(235,245,255,0.9) 40%, rgba(220,240,255,0.85) 100%);
+            border: 1px solid rgba(255,255,255,0.85);
+            box-shadow:
+              0 6px 18px rgba(5,30,60,0.45),
+              inset 0 2px 8px rgba(255,255,255,0.6);
+            text-shadow:
+              0 1px 0 rgba(255,255,255,0.9),
+              0 6px 18px rgba(3,30,60,0.25);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            max-width: 80vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transform: translateY(4px);
+        }
+
+        #photo-modal #photo-caption.cloud-glow {
+            animation: cloudPulse 3.5s ease-in-out infinite;
+        }
+        @keyframes cloudPulse {
+            0% { box-shadow: 0 6px 18px rgba(5,30,60,0.35), inset 0 2px 8px rgba(255,255,255,0.6); transform: translateY(3px) scale(1); }
+            50% { box-shadow: 0 10px 26px rgba(5,30,60,0.45), inset 0 2px 8px rgba(255,255,255,0.7); transform: translateY(2px) scale(1.02); }
+            100% { box-shadow: 0 6px 18px rgba(5,30,60,0.35), inset 0 2px 8px rgba(255,255,255,0.6); transform: translateY(3px) scale(1); }
+        }
+
     </style>
 </head>
 <body class="bg-deep">
@@ -71,8 +134,9 @@
         <button class="start-btn" id="btn-start">开启 3D 魔法之旅</button>
     </div>
 
-    <div id="video-container"><video id="input_video"></video></div>
+    <div id="video-container"><video id="input_video" autoplay muted playsinline></video></div>
 
+    <!-- UI panel (normal) -->
     <div id="ui-panel">
         <div class="panel-title">🎄 圣诞全能控制</div>
         
@@ -104,7 +168,7 @@
 
         <div class="control-group">
             <label>圣诞树高度 <span id="height-val">85</span></label>
-            <input type="range" id="height-slider" min="40" max="150" value="85">
+            <input type="range" id="height-slider" min="40" max="200" value="85">
         </div>
 
         <div class="control-group">
@@ -129,7 +193,14 @@
         </div>
     </div>
 
-    <div id="photo-modal"><img id="modal-img" src=""></div>
+    <!-- Settings gear button (appears only in fullscreen) -->
+    <button id="settings-btn" title="设置 (Settings)">⚙️</button>
+
+    <!-- Updated modal: includes alt and caption -->
+    <div id="photo-modal">
+        <img id="modal-img" src="" alt="Memory">
+        <div id="photo-caption" class="cloud-glow">Sweet Memory</div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -137,9 +208,13 @@
 
     <script>
         let scene, camera, renderer, treeGroup, star, audio, snowParticles;
-        let decorMeshes = [], photoUrls = [], fireworkGroup;
+        let decorMeshes = [], photoUrls = [], photoNames = [], fireworkGroup;
         let playlist = [], currentTrackIndex = 0;
-        
+        const textureLoader = new THREE.TextureLoader();
+
+        // firework auto timer handle
+        let fireworkTimer = null;
+
         const state = { 
             explosion: 0, 
             targetExplosion: 0, 
@@ -186,7 +261,16 @@
             createSnow();
             refreshTree();
             setupUI();
+
+            // start automatic fireworks at a higher frequency (every 700ms)
+            startAutoFireworks(700);
+
             animate();
+        }
+
+        function startAutoFireworks(intervalMs = 700) {
+            if (fireworkTimer) clearInterval(fireworkTimer);
+            fireworkTimer = setInterval(() => { launchFirework(); }, intervalMs);
         }
 
         function createSnow() {
@@ -243,22 +327,45 @@
             }
         }
 
+        // Launch firework: increased frequency handled by startAutoFireworks
+        // Colors: silver (#C0C0C0) and gold (#FFD700)
         function launchFirework() {
-            const count = 50;
-            const geo = new THREE.SphereGeometry(0.5, 6, 6);
-            const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
-            const mat = new THREE.MeshBasicMaterial({color: color});
+            const count = 70; // more particles for a denser firework
+            const geo = new THREE.SphereGeometry(0.6, 8, 8);
+            const palette = [0xC0C0C0, 0xFFD700];
             const group = new THREE.Group();
-            group.position.set(Math.random()*200-100, Math.random()*100, Math.random()*100-150);
-            
-            for(let i=0; i<count; i++) {
+            group.position.set(Math.random()*300-150, 80 + Math.random()*80, Math.random()*200-200);
+
+            for (let i = 0; i < count; i++) {
+                const color = palette[Math.random() < 0.5 ? 0 : 1];
+                const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.95 });
                 const p = new THREE.Mesh(geo, mat);
-                const vel = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize().multiplyScalar(Math.random()*2 + 1);
-                p.userData.vel = vel;
+                const vel = new THREE.Vector3(Math.random()-0.5, Math.random()-0.1, Math.random()-0.5)
+                    .normalize()
+                    .multiplyScalar(2 + Math.random() * 3.5);
+                p.userData = { vel: vel, life: 60 + Math.random()*40 };
+                p.position.set(0,0,0);
                 group.add(p);
             }
+
             fireworkGroup.add(group);
-            setTimeout(() => fireworkGroup.remove(group), 2000);
+            setTimeout(() => {
+                group.children.forEach(p => {
+                    const mat = p.material;
+                    if (mat && mat.opacity !== undefined) {
+                        const start = performance.now();
+                        const dur = 600;
+                        (function fade() {
+                            const t = (performance.now() - start) / dur;
+                            if (t < 1) {
+                                mat.opacity = Math.max(0, 0.95 * (1 - t));
+                                requestAnimationFrame(fade);
+                            }
+                        })();
+                    }
+                });
+                setTimeout(() => { try { fireworkGroup.remove(group); } catch(e){} }, 650);
+            }, 3000);
         }
 
         function updateTrackDisplay() {
@@ -294,34 +401,43 @@
             document.getElementById('loop-btn').style.color = audio.loop ? "var(--cyan)" : "#888";
         }
 
-        // 核心更新：生成带文字相框的函数
+        // Improved: create photo frame with crisp caption and z-offsets to avoid z-fighting
         function createPhotoFrame(texture) {
             const frameGroup = new THREE.Group();
-            
-            // 1. 照片本体
-            const photo = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map: texture, side: THREE.DoubleSide}));
+
+            const photoMat = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+            const photo = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), photoMat);
+            photo.position.z = -0.05;
             frameGroup.add(photo);
 
-            // 2. 金色边框
             const borderGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(17, 17));
-            const borderMat = new THREE.LineBasicMaterial({color: 0xffd700, linewidth: 2});
+            const borderMat = new THREE.LineBasicMaterial({ color: 0xffd700 });
             const border = new THREE.LineSegments(borderGeo, borderMat);
+            border.position.z = 0.02;
             frameGroup.add(border);
 
-            // 3. 'Sweet Memories' 文字看板
             const canvas = document.createElement('canvas');
-            canvas.width = 256; canvas.height = 64;
+            canvas.width = 1024;
+            canvas.height = 256;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(0,0,256,64);
-            ctx.font = 'bold 30px Arial';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.font = 'bold 72px Arial';
             ctx.fillStyle = '#ffd700';
             ctx.textAlign = 'center';
-            ctx.fillText('Sweet Memories', 128, 45);
-            
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Sweet Memories', canvas.width / 2, canvas.height / 2);
+
             const textTex = new THREE.CanvasTexture(canvas);
-            const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), new THREE.MeshBasicMaterial({map: textTex, transparent: true}));
+            textTex.minFilter = THREE.LinearFilter;
+            textTex.needsUpdate = true;
+
+            const textPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(12, 3),
+                new THREE.MeshBasicMaterial({ map: textTex, transparent: true })
+            );
             textPlane.position.y = -9.5;
+            textPlane.position.z = 0.05;
             frameGroup.add(textPlane);
 
             return frameGroup;
@@ -355,28 +471,73 @@
                 }
             };
 
+            // file input handler: load texture asynchronously, create frame in onLoad
             document.getElementById('file-in').onchange = (e) => {
                 Array.from(e.target.files).forEach(file => {
                     const url = URL.createObjectURL(file);
-                    const tex = new THREE.TextureLoader().load(url);
-                    
-                    // 使用新相框逻辑
-                    const frame = createPhotoFrame(tex);
-                    const relY = 0.1 + Math.random() * 0.65;
-                    frame.position.set(Math.random()*100-50, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*100-50);
-                    
-                    frame.userData = { 
-                        origin: frame.position.clone(), 
-                        explode: frame.position.clone().normalize().multiplyScalar(220), 
-                        isPhoto: true 
-                    };
-                    
-                    treeGroup.add(frame);
-                    decorMeshes.push(frame);
-                    photoUrls.push(url);
+                    textureLoader.load(url, (tex) => {
+                        tex.minFilter = THREE.LinearFilter;
+                        tex.needsUpdate = true;
+
+                        const frame = createPhotoFrame(tex);
+                        const relY = 0.1 + Math.random() * 0.65;
+                        frame.position.set(Math.random()*100-50, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*100-50);
+                        
+                        frame.userData = { 
+                            origin: frame.position.clone(), 
+                            explode: frame.position.clone().normalize().multiplyScalar(220), 
+                            isPhoto: true 
+                        };
+                        
+                        treeGroup.add(frame);
+                        decorMeshes.push(frame);
+
+                        // save url and file name for modal caption
+                        photoUrls.push(url);
+                        photoNames.push(file.name || "Sweet Memory");
+                    }, undefined, (err) => {
+                        console.error('Texture load error', err);
+                    });
                 });
             };
+
+            // settings gear click: toggle panel when in fullscreen
+            const settingsBtn = document.getElementById('settings-btn');
+            const uiPanel = document.getElementById('ui-panel');
+            settingsBtn.addEventListener('click', () => {
+                if (uiPanel.style.display === 'block') {
+                    uiPanel.style.display = 'none';
+                    uiPanel.classList.remove('fullscreen-open');
+                } else {
+                    uiPanel.style.display = 'block';
+                    uiPanel.classList.add('fullscreen-open');
+                }
+            });
         }
+
+        // Toggle fullscreen (keeps original behavior)
+        function toggleFS() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        }
+
+        // Keep UI state in sync with fullscreen changes:
+        document.addEventListener('fullscreenchange', () => {
+            const isFs = !!document.fullscreenElement;
+            const panel = document.getElementById('ui-panel');
+            const btn = document.getElementById('settings-btn');
+            if (isFs) {
+                // Entered fullscreen: hide full panel, show gear
+                panel.style.display = 'none';
+                panel.classList.remove('fullscreen-open');
+                btn.style.display = 'flex';
+            } else {
+                // Exited fullscreen: show full panel and hide gear
+                btn.style.display = 'none';
+                panel.style.display = 'block';
+                panel.classList.remove('fullscreen-open');
+            }
+        });
 
         function startTracking() {
             const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
@@ -386,7 +547,6 @@
                 if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
                     const lm = results.multiHandLandmarks[0];
                     
-                    // 核心更新：XY双轴追踪
                     const handX = lm[9].x; 
                     const handY = lm[9].y; 
                     state.targetOffsetX = (handX - 0.5) * -400; 
@@ -400,11 +560,22 @@
 
                     const distPinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
                     if(distPinch < 0.05 && !state.photoActive && photoUrls.length > 0) {
-                        document.getElementById('modal-img').src = photoUrls[Math.floor(Math.random()*photoUrls.length)];
+                        const idx = Math.floor(Math.random()*photoUrls.length);
+                        document.getElementById('modal-img').src = photoUrls[idx];
+
+                        const filename = (photoNames[idx] || '').toString();
+                        if (/^img.*\.jpe?g$/i.test(filename)) {
+                            document.getElementById('photo-caption').innerText = 'Sweet Memory';
+                        } else {
+                            document.getElementById('photo-caption').innerText = filename || 'Sweet Memory';
+                        }
+
+                        document.getElementById('photo-caption').classList.add('cloud-glow');
                         document.getElementById('photo-modal').classList.add('active');
                         state.photoActive = true;
                     } else if(distPinch > 0.12) {
                         document.getElementById('photo-modal').classList.remove('active');
+                        document.getElementById('photo-caption').classList.remove('cloud-glow');
                         state.photoActive = false;
                     }
                 } else {
@@ -425,16 +596,10 @@
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
-        function toggleFS() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
-
         function animate() {
             requestAnimationFrame(animate);
             state.explosion += (state.targetExplosion - state.explosion) * 0.1;
             
-            // XY 平滑偏移应用
             state.treeOffsetX += (state.targetOffsetX - state.treeOffsetX) * 0.05;
             state.treeOffsetY += (state.targetOffsetY - state.treeOffsetY) * 0.05;
             treeGroup.position.set(state.treeOffsetX, state.treeOffsetY, 0);
@@ -450,7 +615,9 @@
             fireworkGroup.children.forEach(group => {
                 group.children.forEach(p => {
                     p.position.add(p.userData.vel);
-                    p.userData.vel.y -= 0.02; 
+                    p.userData.vel.y -= 0.035;
+                    p.userData.vel.x *= 0.995;
+                    p.userData.vel.z *= 0.995;
                 });
             });
 
@@ -473,6 +640,7 @@
         }
 
         window.onresize = () => {
+            if (!camera || !renderer) return;
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
