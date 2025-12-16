@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Christmas - Pro Gesture Edition</title>
+    <title>Magic Christmas Pro - Full Control</title>
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
-        :root { --panel-bg: rgba(20, 20, 20, 0.95); --accent: #ffd700; --btn-main: #00e5ff; }
+        :root { --panel-bg: rgba(10, 10, 10, 0.95); --accent: #ffd700; --cyan: #00e5ff; }
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; color: white; }
         
-        /* 艺术标题 */
         #main-header {
             position: absolute; top: 15px; width: 100%; text-align: center;
             font-family: 'Great Vibes', cursive; font-size: clamp(2.5rem, 6vw, 4.5rem);
-            background: linear-gradient(to bottom, #fff6a1, #ffd700);
+            background: linear-gradient(to bottom, #fff, #ffd700);
             -webkit-background-clip: text; background-clip: text;
             -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(255,215,0,0.4));
             z-index: 50; pointer-events: none;
@@ -24,31 +23,36 @@
             position: fixed; inset: 0; background: #000; z-index: 1000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .start-btn { padding: 15px 50px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; }
+        .start-btn { padding: 15px 60px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .start-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--accent); }
 
-        /* 增强版控制面板 */
+        /* 控制面板 */
         #ui-panel {
-            position: fixed; top: 20px; right: 20px; width: 260px; background: var(--panel-bg);
-            padding: 20px; border-radius: 18px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
-            display: none; box-shadow: 0 15px 40px rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            position: fixed; top: 20px; right: 20px; width: 270px; background: var(--panel-bg);
+            padding: 20px; border-radius: 20px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
+            display: none; backdrop-filter: blur(12px);
         }
-        .control-group { margin-bottom: 12px; }
-        .control-group label { display: block; font-size: 11px; color: #888; margin-bottom: 5px; }
+        .panel-title { color: var(--accent); font-weight: bold; margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .control-group { margin-bottom: 18px; }
+        .control-group label { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 6px; }
         
-        button.tool-btn { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 5px; font-size: 12px; }
-        button.tool-btn:hover { background: #333; }
+        button.tool-btn { width: 100%; padding: 10px; background: #222; border: 1px solid #333; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 6px; font-size: 13px; }
+        button.special-btn { background: var(--cyan); color: #000; font-weight: bold; border: none; }
         
-        /* 摄像头预览窗 */
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: #444; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+
+        /* 预览窗 */
         #video-container {
-            position: fixed; bottom: 20px; left: 20px; width: 160px; height: 120px; 
-            border-radius: 12px; overflow: hidden; border: 2px solid #333; z-index: 90;
+            position: fixed; bottom: 20px; left: 20px; width: 180px; height: 135px; 
+            border-radius: 12px; overflow: hidden; border: 2px solid #444; z-index: 90;
             display: none; background: #000;
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
         #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         #photo-modal.active { transform: translate(-50%, -50%) scale(1); }
-        #photo-modal img { max-width: 80vw; max-height: 70vh; border: 6px solid white; border-radius: 5px; }
+        #photo-modal img { max-width: 80vw; max-height: 70vh; border: 5px solid white; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -56,43 +60,41 @@
     <div id="main-header">Merry Christmas</div>
 
     <div id="start-screen">
-        <h1 style="font-family:'Great Vibes'; font-size: 3rem; color:#ffd700;">Christmas Magic</h1>
-        <button class="start-btn" id="btn-start">开启 3D 魔法</button>
+        <h1 style="font-family:'Great Vibes'; font-size: 4rem; color:#ffd700; margin:0;">Christmas Magic</h1>
+        <p style="color:#666;">🖐 张开手掌即可触发爆炸特效</p>
+        <button class="start-btn" id="btn-start">开始魔法之旅 ✨</button>
     </div>
 
-    <div id="video-container">
-        <video id="input_video"></video>
-    </div>
+    <div id="video-container"><video id="input_video"></video></div>
 
     <div id="ui-panel">
-        <div style="color:var(--accent); font-weight:bold; margin-bottom:15px; font-size:14px;">🎄 魔法设置</div>
+        <div class="panel-title">🎄 圣诞控制面板</div>
         
-        <button class="tool-btn" onclick="toggleFullScreen()">⛶ 全屏显示</button>
-        <button class="tool-btn" onclick="togglePreview()">📷 显示/隐藏预览</button>
+        <button class="tool-btn" onclick="toggleFS()">⛶ 全屏模式</button>
+        <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏预览</button>
 
         <div class="control-group">
-            <label>导入你的照片 (限制高度在星星下)</label>
-            <button class="tool-btn" style="background:#00e5ff; color:#000; font-weight:bold; border:none;" onclick="document.getElementById('file-in').click()">+ 选择多张图片</button>
+            <label>旋转速度 <span id="speed-val">0.006</span></label>
+            <input type="range" id="speed-slider" min="0" max="0.05" step="0.001" value="0.006">
+        </div>
+
+        <div class="control-group">
+            <label>圣诞树高度 <span id="height-val">85</span></label>
+            <input type="range" id="height-slider" min="40" max="150" step="1" value="85">
+        </div>
+
+        <div class="control-group">
+            <label>导入照片</label>
+            <button class="tool-btn special-btn" onclick="document.getElementById('file-in').click()">📷 上传照片云</button>
             <input type="file" id="file-in" multiple accept="image/*" style="display:none">
         </div>
 
         <div class="control-group">
-            <label>场景风格</label>
-            <select id="bg-select" style="width:100%; background:#222; color:white; padding:8px; border:none; border-radius:5px;">
-                <option value="black">纯黑夜空</option>
-                <option value="deep" selected>深邃蓝调</option>
-                <option value="warm">壁炉暖红</option>
-            </select>
-        </div>
-
-        <div class="control-group">
             <label>音乐音量</label>
-            <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.4" style="width:100%">
+            <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.4">
         </div>
-
-        <div style="font-size: 10px; color: #555; text-align: center; margin-top: 10px;">
-            离开镜头装饰将自动归位
-        </div>
+        
+        <div style="font-size: 10px; color: #444; text-align: center;">识别不到手势时，装饰将自动归位</div>
     </div>
 
     <div id="photo-modal"><img id="modal-img" src=""></div>
@@ -104,7 +106,13 @@
     <script>
         let scene, camera, renderer, treeGroup, star, audio;
         let decorMeshes = [], photoUrls = [];
-        const state = { explosion: 0, targetExplosion: 0, treeHeight: 85, photoActive: false };
+        const state = { 
+            explosion: 0, 
+            targetExplosion: 0, 
+            rotSpeed: 0.006, 
+            treeHeight: 85, 
+            photoActive: false 
+        };
 
         audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3'); 
         audio.loop = true;
@@ -120,27 +128,40 @@
 
         function initThree() {
             scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1500);
-            camera.position.set(0, 40, 180);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 50, 200);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-            const light = new THREE.PointLight(0xffd700, 1.5, 500);
+            const light = new THREE.PointLight(0xffd700, 1.5, 600);
             light.position.set(50, 100, 50);
             scene.add(light);
 
             treeGroup = new THREE.Group();
             scene.add(treeGroup);
 
-            createStar();
-            buildDecor();
+            refreshTree();
+            setupUI();
             animate();
         }
 
-        function createStar() {
+        // 刷新圣诞树装饰（用于高度调节）
+        function refreshTree() {
+            // 清理旧物体
+            decorMeshes = decorMeshes.filter(m => {
+                if(!m.userData.isPhoto) { treeGroup.remove(m); return false; }
+                return true;
+            });
+            if(star) treeGroup.remove(star);
+
+            const h = state.treeHeight;
+            const colors = [0xff4444, 0xffd700, 0x44ff44, 0x00e5ff, 0xff00ff];
+            
+            // 重新创建星星
             const shape = new THREE.Shape();
             const outer = 7, inner = 3;
             for(let i=0; i<10; i++){
@@ -149,15 +170,11 @@
                 if(i===0) shape.moveTo(Math.cos(a)*r, Math.sin(a)*r);
                 else shape.lineTo(Math.cos(a)*r, Math.sin(a)*r);
             }
-            const geo = new THREE.ExtrudeGeometry(shape, {depth: 2, bevelEnabled: true, bevelThickness: 1});
-            star = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({color: 0xffd700, shininess: 120}));
-            star.position.y = state.treeHeight - state.treeHeight/3;
+            star = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {depth: 2, bevelEnabled: true}), new THREE.MeshPhongMaterial({color: 0xffd700}));
+            star.position.y = h - h/3;
             treeGroup.add(star);
-        }
 
-        function buildDecor() {
-            const h = state.treeHeight;
-            const colors = [0xff2222, 0xffd700, 0x22ff22, 0x00e5ff, 0xff00ff];
+            // 重新创建装饰
             for (let i = 0; i < 400; i++) {
                 const ratio = i / 400;
                 const r = (1 - ratio) * (h * 0.45);
@@ -165,19 +182,25 @@
                 const y = ratio * h - h/3;
 
                 let mesh;
-                if(Math.random() > 0.85) { // 棒棒糖 (彩色纹理)
-                    mesh = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.4, 8, 12), new THREE.MeshPhongMaterial({color: 0xff4444}));
-                } else { // 亮晶晶圆球
+                if(Math.random() > 0.8) {
+                    mesh = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.4, 8, 12), new THREE.MeshPhongMaterial({color: 0xff3333}));
+                } else {
                     mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color: colors[i % colors.length]}));
                 }
-                
                 mesh.position.set(Math.cos(angle)*r, y, Math.sin(angle)*r);
                 mesh.userData.origin = mesh.position.clone();
-                // 爆炸终点
-                mesh.userData.explode = mesh.position.clone().normalize().multiplyScalar(150 + Math.random()*80);
+                mesh.userData.explode = mesh.position.clone().normalize().multiplyScalar(160 + Math.random()*100);
                 treeGroup.add(mesh);
                 decorMeshes.push(mesh);
             }
+
+            // 更新已有照片的基准位置
+            decorMeshes.forEach(m => {
+                if(m.userData.isPhoto) {
+                    const oldRelY = m.userData.relY;
+                    m.userData.origin.y = (oldRelY * h) - h/3;
+                }
+            });
         }
 
         function startTracking() {
@@ -186,11 +209,11 @@
             hands.onResults(results => {
                 if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
                     const lm = results.multiHandLandmarks[0];
-                    // 1. 张手爆炸 (拇指和小指距离)
+                    // 爆炸识别
                     const d = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
                     state.targetExplosion = Math.min(Math.max((d - 0.15) * 4, 0), 1);
                     
-                    // 2. 捏合看图 (拇指和食指)
+                    // 捏合看图
                     const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
                     if(pinch < 0.05 && !state.photoActive && photoUrls.length > 0) {
                         document.getElementById('modal-img').src = photoUrls[Math.floor(Math.random()*photoUrls.length)];
@@ -201,8 +224,7 @@
                         state.photoActive = false;
                     }
                 } else {
-                    // *** 关键：识别不到手时归位 ***
-                    state.targetExplosion = 0;
+                    state.targetExplosion = 0; // 手离开画面自动恢复
                 }
             });
 
@@ -212,56 +234,58 @@
             }).start();
         }
 
-        // --- 功能函数 ---
-        function toggleFullScreen() {
+        function setupUI() {
+            document.getElementById('speed-slider').oninput = (e) => {
+                state.rotSpeed = parseFloat(e.target.value);
+                document.getElementById('speed-val').innerText = e.target.value;
+            };
+            document.getElementById('height-slider').oninput = (e) => {
+                state.treeHeight = parseInt(e.target.value);
+                document.getElementById('height-val').innerText = e.target.value;
+                refreshTree();
+            };
+            document.getElementById('vol-slider').oninput = (e) => audio.volume = e.target.value;
+            
+            document.getElementById('file-in').onchange = (e) => {
+                Array.from(e.target.files).forEach(file => {
+                    const url = URL.createObjectURL(file);
+                    const tex = new THREE.TextureLoader().load(url);
+                    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map:tex, side:2}));
+                    const relY = 0.1 + Math.random() * 0.7; // 比例限制在星星下
+                    mesh.position.set(Math.random()*80-40, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*80-40);
+                    mesh.userData = { origin: mesh.position.clone(), relY: relY, explode: mesh.position.clone().normalize().multiplyScalar(180), isPhoto: true };
+                    treeGroup.add(mesh);
+                    decorMeshes.push(mesh);
+                    photoUrls.push(url);
+                });
+            };
+        }
+
+        function toggleFS() {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen();
             else document.exitFullscreen();
         }
 
-        function togglePreview() {
-            const v = document.getElementById('video-container');
-            v.style.display = v.style.display === 'none' ? 'block' : 'none';
+        function toggleCam() {
+            const el = document.getElementById('video-container');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
-
-        document.getElementById('file-in').onchange = (e) => {
-            Array.from(e.target.files).forEach(file => {
-                const url = URL.createObjectURL(file);
-                const tex = new THREE.TextureLoader().load(url);
-                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({map:tex, side:2}));
-                // 限制在星星下方 (y 坐标最大为星星的高度)
-                const y = (Math.random() * 0.7 * state.treeHeight) - state.treeHeight/3;
-                mesh.position.set(Math.random()*80-40, y, Math.random()*80-40);
-                mesh.userData = {origin: mesh.position.clone(), explode: mesh.position.clone().normalize().multiplyScalar(170), isPhoto: true};
-                treeGroup.add(mesh);
-                decorMeshes.push(mesh);
-                photoUrls.push(url);
-            });
-        };
-
-        document.getElementById('vol-slider').oninput = (e) => audio.volume = e.target.value;
 
         function animate() {
             requestAnimationFrame(animate);
-            // 平滑爆炸
-            state.explosion += (state.targetExplosion - state.explosion) * 0.12;
+            state.explosion += (state.targetExplosion - state.explosion) * 0.1;
             
             decorMeshes.forEach(m => {
-                // 插值移动
                 m.position.lerpVectors(m.userData.origin, m.userData.explode, state.explosion);
-                if(m.userData.isPhoto) {
-                    m.lookAt(camera.position);
-                    // 爆炸时照片放大且变亮
-                    m.scale.setScalar(1 + state.explosion * 0.6);
-                }
+                if(m.userData.isPhoto) m.lookAt(camera.position);
             });
 
             if(star) {
                 star.rotation.z += 0.02;
-                // 星星在爆炸时会变大
-                star.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.1 + state.explosion * 0.3);
+                star.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.1 + state.explosion * 0.5);
             }
 
-            treeGroup.rotation.y += 0.006;
+            treeGroup.rotation.y += state.rotSpeed;
             renderer.render(scene, camera);
         }
 
