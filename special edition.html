@@ -32,7 +32,7 @@
         #ui-panel {
             position: fixed; top: 20px; right: 20px; width: 270px; background: var(--panel-bg);
             padding: 20px; border-radius: 20px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
-            display: none; backdrop-filter: blur(12px); max-height: 60vh; overflow-y: auto;
+            display: none; backdrop-filter: blur(12px); max-height: 85vh; overflow-y: auto;
         }
         .panel-title { color: var(--accent); font-weight: bold; margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
         .control-group { margin-bottom: 15px; }
@@ -45,7 +45,7 @@
         input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: #444; border-radius: 2px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-        /* 左下角：摄像头预览 */
+        /* 视频容器样式 */
         #video-container {
             position: fixed; bottom: 20px; left: 20px; width: 180px; height: 135px; 
             border-radius: 12px; overflow: hidden; border: 2px solid #444; z-index: 90;
@@ -53,12 +53,11 @@
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
-        /* 右下角：YouTube 播放器 */
+        /* 调试用：把 YouTube 放在左下角预览上方 */
         #yt-debug-container {
-            position: fixed; bottom: 20px; right: 20px; width: 270px; height: 150px;
-            border-radius: 15px; overflow: hidden; border: 2px solid var(--accent); z-index: 110;
-            display: none; background: #000;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            position: fixed; bottom: 165px; left: 20px; width: 180px; height: 110px;
+            border-radius: 12px; overflow: hidden; border: 2px solid #ff4444; z-index: 100;
+            display: none;
         }
 
         #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s; }
@@ -94,7 +93,7 @@
             </select>
         </div>
         <button class="tool-btn" onclick="toggleFS()">⛶ 全屏展示</button>
-        <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏摄像头</button>
+        <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏预览</button>
         <div class="control-group">
             <label>圣诞树高度 <span id="height-val">85</span></label>
             <input type="range" id="height-slider" min="40" max="150" value="85">
@@ -103,7 +102,7 @@
             <label>音乐音量</label>
             <input type="range" id="vol-slider" min="0" max="100" step="1" value="50">
         </div>
-        <button class="tool-btn" onclick="toggleYT()">📺 显示/隐藏播放器</button>
+        <p style="font-size: 10px; color: #666;">*注：若无声音，请手动点击左下角视频小窗播放一次。</p>
     </div>
 
     <div id="photo-modal"><img id="modal-img" src=""></div>
@@ -119,68 +118,54 @@
         const state = { explosion: 0, targetExplosion: 0, rotSpeed: 0.006, treeHeight: 85, snowSpeed: 0.6 };
 
         // YouTube API 核心逻辑
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
-                height: '100%',
-                width: '100%',
-                videoId: 'UMfuUX8OdZc',
-                playerVars: {
-                    'autoplay': 1,
-                    'controls': 1,
-                    'loop': 1,
-                    'playlist': 'UMfuUX8OdZc',
-                    'origin': window.location.origin
-                },
-                events: {
-                    'onReady': (event) => { 
-                        console.log("YouTube Ready");
-                        event.target.setVolume(50);
-                    },
-                    'onStateChange': (event) => {
-                        // 如果视频因为自动播放限制停下了，可以在这里处理
-                        if (event.data === YT.PlayerState.UNSTARTED) {
-                            player.playVideo();
-                        }
-                    }
-                }
-            });
+        // 1. 初始化播放器
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('yt-player', {
+        height: '200',
+        width: '300',
+        videoId: 'UMfuUX8OdZc',
+        playerVars: {
+            'autoplay': 1,
+            'mute': 0, // 确保不静音
+            'listType': 'playlist',
+            'list': 'RDUMfuUX8OdZc'
+        },
+        events: {
+            'onReady': onPlayerReady
         }
+    });
+}
+
+function onPlayerReady(event) {
+    // 准备就绪，但不在这里 play，等用户点按钮
+    console.log("Music Ready");
+}
+
+// 2. 按钮点击触发
+document.getElementById('btn-start').onclick = () => {
+    // ... 其他代码保持不变 ...
+    if (player && player.playVideo) {
+        player.playVideo();
+        player.setVolume(50); // 设置 50% 音量
+    }
+};
 
         document.getElementById('btn-start').onclick = () => {
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('ui-panel').style.display = 'block';
             document.getElementById('video-container').style.display = 'block';
-            document.getElementById('yt-debug-container').style.display = 'block';
+            document.getElementById('yt-debug-container').style.display = 'block'; // 显示视频窗
             initThree();
             startTracking();
             
             if (player && player.playVideo) {
                 player.playVideo();
                 player.unMute();
+                player.setVolume(50);
             }
         };
 
-        // UI 控制函数
-        function toggleYT() {
-            const el = document.getElementById('yt-debug-container');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function toggleCam() {
-            const el = document.getElementById('video-container');
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function toggleFS() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
-
-        document.getElementById('vol-slider').oninput = (e) => {
-            if(player && player.setVolume) player.setVolume(e.target.value);
-        };
-
-        // --- 3D 渲染逻辑 (保持原样) ---
+        // --- 以下为 3D 和 手势代码 (保持不变) ---
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
@@ -235,11 +220,25 @@
             renderer.render(scene, camera);
         }
 
+        function toggleCam() {
+            const el = document.getElementById('video-container');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleFS() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        }
+
+        document.getElementById('vol-slider').oninput = (e) => {
+            if(player && player.setVolume) player.setVolume(e.target.value);
+        };
+        
         window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         };
-    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
