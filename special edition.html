@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Magic Christmas Pro - Full Control</title>
+    <title>3D Magic Christmas World - Ultimate</title>
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
         :root { --panel-bg: rgba(10, 10, 10, 0.95); --accent: #ffd700; --cyan: #00e5ff; }
@@ -14,35 +14,31 @@
             font-family: 'Great Vibes', cursive; font-size: clamp(2.5rem, 6vw, 4.5rem);
             background: linear-gradient(to bottom, #fff, #ffd700);
             -webkit-background-clip: text; background-clip: text;
-            -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(255,215,0,0.4));
+            -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(255,215,0,0.5));
             z-index: 50; pointer-events: none;
         }
 
-        /* 开始屏幕 */
         #start-screen {
             position: fixed; inset: 0; background: #000; z-index: 1000;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .start-btn { padding: 15px 60px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .start-btn:hover { transform: scale(1.1); box-shadow: 0 0 20px var(--accent); }
+        .start-btn { padding: 15px 60px; font-size: 20px; border-radius: 50px; border: none; background: linear-gradient(90deg, #ffd700, #ff8800); cursor: pointer; font-weight: bold; }
 
-        /* 控制面板 */
         #ui-panel {
             position: fixed; top: 20px; right: 20px; width: 270px; background: var(--panel-bg);
             padding: 20px; border-radius: 20px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
-            display: none; backdrop-filter: blur(12px);
+            display: none; backdrop-filter: blur(12px); max-height: 85vh; overflow-y: auto;
         }
         .panel-title { color: var(--accent); font-weight: bold; margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        .control-group { margin-bottom: 18px; }
+        .control-group { margin-bottom: 15px; }
         .control-group label { display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 6px; }
         
-        button.tool-btn { width: 100%; padding: 10px; background: #222; border: 1px solid #333; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 6px; font-size: 13px; }
+        button.tool-btn { width: 100%; padding: 10px; background: #222; border: 1px solid #333; border-radius: 8px; color: white; cursor: pointer; margin-bottom: 5px; font-size: 12px; }
         button.special-btn { background: var(--cyan); color: #000; font-weight: bold; border: none; }
         
-        input[type=range] { -webkit-appearance: none; width: 100%; height: 4px; background: #444; border-radius: 2px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
+        input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: #444; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
-        /* 预览窗 */
         #video-container {
             position: fixed; bottom: 20px; left: 20px; width: 180px; height: 135px; 
             border-radius: 12px; overflow: hidden; border: 2px solid #444; z-index: 90;
@@ -50,7 +46,7 @@
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
-        #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s; }
         #photo-modal.active { transform: translate(-50%, -50%) scale(1); }
         #photo-modal img { max-width: 80vw; max-height: 70vh; border: 5px solid white; border-radius: 8px; }
     </style>
@@ -60,18 +56,22 @@
     <div id="main-header">Merry Christmas</div>
 
     <div id="start-screen">
-        <h1 style="font-family:'Great Vibes'; font-size: 4rem; color:#ffd700; margin:0;">Christmas Magic</h1>
-        <p style="color:#666;">🖐 张开手掌即可触发爆炸特效</p>
-        <button class="start-btn" id="btn-start">开始魔法之旅 ✨</button>
+        <h1 style="font-family:'Great Vibes'; font-size: 4rem; color:#ffd700; margin:0;">Magic Christmas</h1>
+        <button class="start-btn" id="btn-start">进入魔法 3D 场景 ✨</button>
     </div>
 
     <div id="video-container"><video id="input_video"></video></div>
 
     <div id="ui-panel">
-        <div class="panel-title">🎄 圣诞控制面板</div>
+        <div class="panel-title">🎄 全能控制面板</div>
         
         <button class="tool-btn" onclick="toggleFS()">⛶ 全屏模式</button>
         <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏预览</button>
+
+        <div class="control-group">
+            <label>圣诞树高度 <span id="height-val">85</span></label>
+            <input type="range" id="height-slider" min="40" max="150" value="85">
+        </div>
 
         <div class="control-group">
             <label>旋转速度 <span id="speed-val">0.006</span></label>
@@ -79,13 +79,13 @@
         </div>
 
         <div class="control-group">
-            <label>圣诞树高度 <span id="height-val">85</span></label>
-            <input type="range" id="height-slider" min="40" max="150" step="1" value="85">
+            <label>❄️ 雪花降落速度 <span id="snow-val">0.6</span></label>
+            <input type="range" id="snow-slider" min="0" max="3" step="0.1" value="0.6">
         </div>
 
         <div class="control-group">
-            <label>导入照片</label>
-            <button class="tool-btn special-btn" onclick="document.getElementById('file-in').click()">📷 上传照片云</button>
+            <label>导入照片云</label>
+            <button class="tool-btn special-btn" onclick="document.getElementById('file-in').click()">+ 选择图片</button>
             <input type="file" id="file-in" multiple accept="image/*" style="display:none">
         </div>
 
@@ -94,7 +94,7 @@
             <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.4">
         </div>
         
-        <div style="font-size: 10px; color: #444; text-align: center;">识别不到手势时，装饰将自动归位</div>
+        <div style="font-size: 10px; color: #555; text-align: center;">手势：🖐爆炸 / ✊还原 / 👌捏合看图</div>
     </div>
 
     <div id="photo-modal"><img id="modal-img" src=""></div>
@@ -104,13 +104,14 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        let scene, camera, renderer, treeGroup, star, audio;
+        let scene, camera, renderer, treeGroup, star, audio, snowParticles;
         let decorMeshes = [], photoUrls = [];
         const state = { 
             explosion: 0, 
             targetExplosion: 0, 
             rotSpeed: 0.006, 
             treeHeight: 85, 
+            snowSpeed: 0.6,
             photoActive: false 
         };
 
@@ -129,11 +130,10 @@
         function initThree() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 50, 200);
+            camera.position.set(0, 50, 220);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.9));
@@ -144,24 +144,33 @@
             treeGroup = new THREE.Group();
             scene.add(treeGroup);
 
+            createSnow();
             refreshTree();
             setupUI();
             animate();
         }
 
-        // 刷新圣诞树装饰（用于高度调节）
+        // 无限循环雪花系统
+        function createSnow() {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            for (let i = 0; i < 3000; i++) {
+                pos.push(Math.random()*600-300, Math.random()*600-300, Math.random()*600-300);
+            }
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            snowParticles = new THREE.Points(geo, new THREE.PointsMaterial({color: 0xffffff, size: 1.0, transparent: true, opacity: 0.7}));
+            scene.add(snowParticles);
+        }
+
         function refreshTree() {
-            // 清理旧物体
-            decorMeshes = decorMeshes.filter(m => {
-                if(!m.userData.isPhoto) { treeGroup.remove(m); return false; }
-                return true;
-            });
+            decorMeshes.forEach(m => { if(!m.userData.isPhoto) treeGroup.remove(m); });
+            decorMeshes = decorMeshes.filter(m => m.userData.isPhoto);
             if(star) treeGroup.remove(star);
 
             const h = state.treeHeight;
             const colors = [0xff4444, 0xffd700, 0x44ff44, 0x00e5ff, 0xff00ff];
             
-            // 重新创建星星
+            // 立体星星
             const shape = new THREE.Shape();
             const outer = 7, inner = 3;
             for(let i=0; i<10; i++){
@@ -174,13 +183,12 @@
             star.position.y = h - h/3;
             treeGroup.add(star);
 
-            // 重新创建装饰
+            // 装饰
             for (let i = 0; i < 400; i++) {
                 const ratio = i / 400;
                 const r = (1 - ratio) * (h * 0.45);
                 const angle = i * 0.5;
                 const y = ratio * h - h/3;
-
                 let mesh;
                 if(Math.random() > 0.8) {
                     mesh = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.4, 8, 12), new THREE.MeshPhongMaterial({color: 0xff3333}));
@@ -193,45 +201,6 @@
                 treeGroup.add(mesh);
                 decorMeshes.push(mesh);
             }
-
-            // 更新已有照片的基准位置
-            decorMeshes.forEach(m => {
-                if(m.userData.isPhoto) {
-                    const oldRelY = m.userData.relY;
-                    m.userData.origin.y = (oldRelY * h) - h/3;
-                }
-            });
-        }
-
-        function startTracking() {
-            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.7});
-            hands.onResults(results => {
-                if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
-                    const lm = results.multiHandLandmarks[0];
-                    // 爆炸识别
-                    const d = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
-                    state.targetExplosion = Math.min(Math.max((d - 0.15) * 4, 0), 1);
-                    
-                    // 捏合看图
-                    const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                    if(pinch < 0.05 && !state.photoActive && photoUrls.length > 0) {
-                        document.getElementById('modal-img').src = photoUrls[Math.floor(Math.random()*photoUrls.length)];
-                        document.getElementById('photo-modal').classList.add('active');
-                        state.photoActive = true;
-                    } else if(pinch > 0.15) {
-                        document.getElementById('photo-modal').classList.remove('active');
-                        state.photoActive = false;
-                    }
-                } else {
-                    state.targetExplosion = 0; // 手离开画面自动恢复
-                }
-            });
-
-            new Camera(document.getElementById('input_video'), {
-                onFrame: async () => { await hands.send({image: document.getElementById('input_video')}); },
-                width: 640, height: 480
-            }).start();
         }
 
         function setupUI() {
@@ -244,6 +213,10 @@
                 document.getElementById('height-val').innerText = e.target.value;
                 refreshTree();
             };
+            document.getElementById('snow-slider').oninput = (e) => {
+                state.snowSpeed = parseFloat(e.target.value);
+                document.getElementById('snow-val').innerText = e.target.value;
+            };
             document.getElementById('vol-slider').oninput = (e) => audio.volume = e.target.value;
             
             document.getElementById('file-in').onchange = (e) => {
@@ -251,9 +224,9 @@
                     const url = URL.createObjectURL(file);
                     const tex = new THREE.TextureLoader().load(url);
                     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map:tex, side:2}));
-                    const relY = 0.1 + Math.random() * 0.7; // 比例限制在星星下
+                    const relY = 0.1 + Math.random() * 0.65;
                     mesh.position.set(Math.random()*80-40, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*80-40);
-                    mesh.userData = { origin: mesh.position.clone(), relY: relY, explode: mesh.position.clone().normalize().multiplyScalar(180), isPhoto: true };
+                    mesh.userData = { origin: mesh.position.clone(), explode: mesh.position.clone().normalize().multiplyScalar(180), isPhoto: true };
                     treeGroup.add(mesh);
                     decorMeshes.push(mesh);
                     photoUrls.push(url);
@@ -261,14 +234,39 @@
             };
         }
 
-        function toggleFS() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
+        function startTracking() {
+            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+            hands.setOptions({maxNumHands: 1, minDetectionConfidence: 0.7});
+            hands.onResults(results => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
+                    const lm = results.multiHandLandmarks[0];
+                    const d = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
+                    state.targetExplosion = Math.min(Math.max((d - 0.15) * 4, 0), 1);
+                    const pinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+                    if(pinch < 0.05 && !state.photoActive && photoUrls.length > 0) {
+                        document.getElementById('modal-img').src = photoUrls[Math.floor(Math.random()*photoUrls.length)];
+                        document.getElementById('photo-modal').classList.add('active');
+                        state.photoActive = true;
+                    } else if(pinch > 0.15) {
+                        document.getElementById('photo-modal').classList.remove('active');
+                        state.photoActive = false;
+                    }
+                } else { state.targetExplosion = 0; }
+            });
+            new Camera(document.getElementById('input_video'), {
+                onFrame: async () => { await hands.send({image: document.getElementById('input_video')}); },
+                width: 640, height: 480
+            }).start();
         }
 
         function toggleCam() {
             const el = document.getElementById('video-container');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleFS() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
         }
 
         function animate() {
@@ -279,6 +277,16 @@
                 m.position.lerpVectors(m.userData.origin, m.userData.explode, state.explosion);
                 if(m.userData.isPhoto) m.lookAt(camera.position);
             });
+
+            // 雪花无限降落逻辑
+            if (snowParticles) {
+                const arr = snowParticles.geometry.attributes.position.array;
+                for (let i = 1; i < arr.length; i += 3) {
+                    arr[i] -= state.snowSpeed;
+                    if (arr[i] < -300) arr[i] = 300; // 到底部后重回顶部
+                }
+                snowParticles.geometry.attributes.position.needsUpdate = true;
+            }
 
             if(star) {
                 star.rotation.z += 0.02;
