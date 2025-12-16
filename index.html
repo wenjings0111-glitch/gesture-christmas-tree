@@ -52,7 +52,7 @@
             scene = new THREE.Scene();
             scene.fog = new THREE.Fog(0x0d1117, 10, 50);
 
-            camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
+            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
             camera.position.set(0, 5, config.cameraDistance);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
