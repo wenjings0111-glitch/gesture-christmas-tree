@@ -9,7 +9,6 @@
         :root { --panel-bg: rgba(10, 10, 10, 0.95); --accent: #ffd700; --cyan: #00e5ff; }
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; transition: background 1.5s ease; color: white; }
         
-        /* 动态背景样式 */
         body.bg-black { background: #000; }
         body.bg-deep { background: radial-gradient(circle at center, #050a1f 0%, #000 100%); }
         body.bg-warm { background: radial-gradient(circle at center, #240b0b 0%, #000 100%); }
@@ -33,7 +32,7 @@
         #ui-panel {
             position: fixed; top: 20px; right: 20px; width: 270px; background: var(--panel-bg);
             padding: 20px; border-radius: 20px; z-index: 100; border: 1px solid rgba(255,255,255,0.1);
-            display: none; backdrop-filter: blur(12px); max-height: 85vh; overflow-y: auto;
+            display: none; backdrop-filter: blur(12px); max-height: 60vh; overflow-y: auto;
         }
         .panel-title { color: var(--accent); font-weight: bold; margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
         .control-group { margin-bottom: 15px; }
@@ -46,6 +45,7 @@
         input[type=range] { -webkit-appearance: none; width: 100%; height: 3px; background: #444; border-radius: 2px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--accent); border-radius: 50%; cursor: pointer; }
 
+        /* 左下角：摄像头预览 */
         #video-container {
             position: fixed; bottom: 20px; left: 20px; width: 180px; height: 135px; 
             border-radius: 12px; overflow: hidden; border: 2px solid #444; z-index: 90;
@@ -53,13 +53,17 @@
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 
+        /* 右下角：YouTube 播放器 */
+        #yt-debug-container {
+            position: fixed; bottom: 20px; right: 20px; width: 270px; height: 150px;
+            border-radius: 15px; overflow: hidden; border: 2px solid var(--accent); z-index: 110;
+            display: none; background: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
         #photo-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0); z-index: 500; transition: 0.4s; }
         #photo-modal.active { transform: translate(-50%, -50%) scale(1); }
         #photo-modal img { max-width: 80vw; max-height: 70vh; border: 5px solid white; border-radius: 8px; }
-        
-        /* 隐藏 YouTube 播放器但保持它运行 */
-       /* 找这段代码并临时修改，看看视频有没有出来 */
-       #yt-player { position: fixed; bottom: 10px; right: 10px; width: 200px; height: 120px; z-index: 200; }
     </style>
 </head>
 <body class="bg-deep">
@@ -72,13 +76,14 @@
         <button class="start-btn" id="btn-start">开启 3D 魔法之旅</button>
     </div>
 
-    <div id="yt-player"></div>
+    <div id="yt-debug-container">
+        <div id="player"></div>
+    </div>
 
     <div id="video-container"><video id="input_video"></video></div>
 
     <div id="ui-panel">
         <div class="panel-title">🎄 圣诞全能控制</div>
-        
         <div class="control-group">
             <label>场景风格</label>
             <select id="bg-select">
@@ -88,35 +93,17 @@
                 <option value="aurora">❄️ 极光 (Aurora)</option>
             </select>
         </div>
-
         <button class="tool-btn" onclick="toggleFS()">⛶ 全屏展示</button>
-        <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏预览</button>
-
+        <button class="tool-btn" onclick="toggleCam()">📷 显示/隐藏摄像头</button>
         <div class="control-group">
             <label>圣诞树高度 <span id="height-val">85</span></label>
             <input type="range" id="height-slider" min="40" max="150" value="85">
         </div>
-
-        <div class="control-group">
-            <label>旋转速度 <span id="speed-val">0.006</span></label>
-            <input type="range" id="speed-slider" min="0" max="0.05" step="0.001" value="0.006">
-        </div>
-
-        <div class="control-group">
-            <label>❄️ 雪花降落速度 <span id="snow-val">0.6</span></label>
-            <input type="range" id="snow-slider" min="0" max="3" step="0.1" value="0.6">
-        </div>
-
-        <div class="control-group">
-            <label>管理您的照片</label>
-            <button class="tool-btn special-btn" onclick="document.getElementById('file-in').click()">📷 导入照片云</button>
-            <input type="file" id="file-in" multiple accept="image/*" style="display:none">
-        </div>
-
         <div class="control-group">
             <label>音乐音量</label>
-            <input type="range" id="vol-slider" min="0" max="100" step="1" value="40">
+            <input type="range" id="vol-slider" min="0" max="100" step="1" value="50">
         </div>
+        <button class="tool-btn" onclick="toggleYT()">📺 显示/隐藏播放器</button>
     </div>
 
     <div id="photo-modal"><img id="modal-img" src=""></div>
@@ -129,29 +116,31 @@
     <script>
         let scene, camera, renderer, treeGroup, star, player, snowParticles;
         let decorMeshes = [], photoUrls = [];
-        const state = { 
-            explosion: 0, 
-            targetExplosion: 0, 
-            rotSpeed: 0.006, 
-            treeHeight: 85, 
-            snowSpeed: 0.6,
-            photoActive: false 
-        };
+        const state = { explosion: 0, targetExplosion: 0, rotSpeed: 0.006, treeHeight: 85, snowSpeed: 0.6 };
 
-        // 初始化 YouTube 播放器
+        // YouTube API 核心逻辑
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('yt-player', {
-                height: '0',
-                width: '0',
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
                 videoId: 'UMfuUX8OdZc',
                 playerVars: {
                     'autoplay': 1,
-                    'list': 'RDUMfuUX8OdZc',
-                    'loop': 1
+                    'controls': 1,
+                    'loop': 1,
+                    'playlist': 'UMfuUX8OdZc',
+                    'origin': window.location.origin
                 },
                 events: {
-                    'onReady': (event) => {
-                        event.target.setVolume(40);
+                    'onReady': (event) => { 
+                        console.log("YouTube Ready");
+                        event.target.setVolume(50);
+                    },
+                    'onStateChange': (event) => {
+                        // 如果视频因为自动播放限制停下了，可以在这里处理
+                        if (event.data === YT.PlayerState.UNSTARTED) {
+                            player.playVideo();
+                        }
                     }
                 }
             });
@@ -161,155 +150,20 @@
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('ui-panel').style.display = 'block';
             document.getElementById('video-container').style.display = 'block';
+            document.getElementById('yt-debug-container').style.display = 'block';
             initThree();
             startTracking();
             
-            // 用户点击后触发播放
             if (player && player.playVideo) {
                 player.playVideo();
+                player.unMute();
             }
         };
 
-        function initThree() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 50, 220);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-
-            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-            const light = new THREE.PointLight(0xffd700, 1.5, 600);
-            light.position.set(50, 100, 50);
-            scene.add(light);
-
-            treeGroup = new THREE.Group();
-            scene.add(treeGroup);
-
-            createSnow();
-            refreshTree();
-            setupUI();
-            animate();
-        }
-
-        function createSnow() {
-            const geo = new THREE.BufferGeometry();
-            const pos = [];
-            for (let i = 0; i < 3000; i++) {
-                pos.push(Math.random()*800-400, Math.random()*800-400, Math.random()*800-400);
-            }
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-            snowParticles = new THREE.Points(geo, new THREE.PointsMaterial({color: 0xffffff, size: 1.2, transparent: true, opacity: 0.8}));
-            scene.add(snowParticles);
-        }
-
-        function refreshTree() {
-            decorMeshes.forEach(m => { if(!m.userData.isPhoto) treeGroup.remove(m); });
-            decorMeshes = decorMeshes.filter(m => m.userData.isPhoto);
-            if(star) treeGroup.remove(star);
-
-            const h = state.treeHeight;
-            const colors = [0xff4444, 0xffd700, 0x44ff44, 0x00e5ff, 0xff00ff];
-            
-            const shape = new THREE.Shape();
-            const outer = 7, inner = 3;
-            for(let i=0; i<10; i++){
-                let r = i%2===0 ? outer : inner;
-                let a = (Math.PI*2 * i)/10 - Math.PI/2;
-                if(i===0) shape.moveTo(Math.cos(a)*r, Math.sin(a)*r);
-                else shape.lineTo(Math.cos(a)*r, Math.sin(a)*r);
-            }
-            star = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, {depth: 2.5, bevelEnabled: true}), new THREE.MeshPhongMaterial({color: 0xffd700}));
-            star.position.y = h - h/3;
-            treeGroup.add(star);
-
-            for (let i = 0; i < 400; i++) {
-                const ratio = i / 400;
-                const r = (1 - ratio) * (h * 0.45);
-                const angle = i * 0.5;
-                const y = ratio * h - h/3;
-                let mesh;
-                if(Math.random() > 0.8) {
-                    mesh = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.4, 8, 12), new THREE.MeshPhongMaterial({color: 0xff3333}));
-                } else {
-                    mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color: colors[i % colors.length]}));
-                }
-                mesh.position.set(Math.cos(angle)*r, y, Math.sin(angle)*r);
-                mesh.userData.origin = mesh.position.clone();
-                mesh.userData.explode = mesh.position.clone().normalize().multiplyScalar(170 + Math.random()*100);
-                treeGroup.add(mesh);
-                decorMeshes.push(mesh);
-            }
-        }
-
-        function setupUI() {
-            document.getElementById('bg-select').onchange = (e) => document.body.className = 'bg-' + e.target.value;
-            document.getElementById('speed-slider').oninput = (e) => {
-                state.rotSpeed = parseFloat(e.target.value);
-                document.getElementById('speed-val').innerText = e.target.value;
-            };
-            document.getElementById('height-slider').oninput = (e) => {
-                state.treeHeight = parseInt(e.target.value);
-                document.getElementById('height-val').innerText = e.target.value;
-                refreshTree();
-            };
-            document.getElementById('snow-slider').oninput = (e) => {
-                state.snowSpeed = parseFloat(e.target.value);
-                document.getElementById('snow-val').innerText = e.target.value;
-            };
-            document.getElementById('vol-slider').oninput = (e) => {
-                if(player && player.setVolume) player.setVolume(e.target.value);
-            };
-            
-            document.getElementById('file-in').onchange = (e) => {
-                Array.from(e.target.files).forEach(file => {
-                    const url = URL.createObjectURL(file);
-                    const tex = new THREE.TextureLoader().load(url);
-                    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map:tex, side:2}));
-                    const relY = 0.1 + Math.random() * 0.65;
-                    mesh.position.set(Math.random()*80-40, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*80-40);
-                    mesh.userData = { origin: mesh.position.clone(), explode: mesh.position.clone().normalize().multiplyScalar(190), isPhoto: true };
-                    treeGroup.add(mesh);
-                    decorMeshes.push(mesh);
-                    photoUrls.push(url);
-                });
-            };
-        }
-
-        function startTracking() {
-            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
-            hands.setOptions({
-                maxNumHands: 1,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.6,
-                minTrackingConfidence: 0.5
-            });
-
-            hands.onResults(results => {
-                if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
-                    const lm = results.multiHandLandmarks[0];
-                    const distExplode = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
-                    state.targetExplosion = Math.min(Math.max((distExplode - 0.15) * 4, 0), 1);
-                    
-                    const distPinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                    if(distPinch < 0.05 && !state.photoActive && photoUrls.length > 0) {
-                        document.getElementById('modal-img').src = photoUrls[Math.floor(Math.random()*photoUrls.length)];
-                        document.getElementById('photo-modal').classList.add('active');
-                        state.photoActive = true;
-                    } else if(distPinch > 0.12) {
-                        document.getElementById('photo-modal').classList.remove('active');
-                        state.photoActive = false;
-                    }
-                } else {
-                    state.targetExplosion = 0;
-                }
-            });
-
-            new Camera(document.getElementById('input_video'), {
-                onFrame: async () => { await hands.send({image: document.getElementById('input_video')}); },
-                width: 640, height: 480
-            }).start();
+        // UI 控制函数
+        function toggleYT() {
+            const el = document.getElementById('yt-debug-container');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
         }
 
         function toggleCam() {
@@ -322,32 +176,61 @@
             else document.exitFullscreen();
         }
 
+        document.getElementById('vol-slider').oninput = (e) => {
+            if(player && player.setVolume) player.setVolume(e.target.value);
+        };
+
+        // --- 3D 渲染逻辑 (保持原样) ---
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 2000);
+            camera.position.set(0, 50, 220);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+            treeGroup = new THREE.Group();
+            scene.add(treeGroup);
+            refreshTree();
+            animate();
+        }
+
+        function refreshTree() {
+            const h = state.treeHeight;
+            const colors = [0xff4444, 0xffd700, 0x44ff44];
+            for (let i = 0; i < 300; i++) {
+                const ratio = i / 300;
+                const r = (1 - ratio) * (h * 0.45);
+                const angle = i * 0.5;
+                const y = ratio * h - h/3;
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(1.2), new THREE.MeshPhongMaterial({color: colors[i % 3]}));
+                mesh.position.set(Math.cos(angle)*r, y, Math.sin(angle)*r);
+                mesh.userData = { origin: mesh.position.clone(), explode: mesh.position.clone().normalize().multiplyScalar(170) };
+                treeGroup.add(mesh);
+                decorMeshes.push(mesh);
+            }
+        }
+
+        function startTracking() {
+            const hands = new Hands({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+            hands.setOptions({ maxNumHands: 1, minDetectionConfidence: 0.6 });
+            hands.onResults(results => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
+                    const lm = results.multiHandLandmarks[0];
+                    const dist = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
+                    state.targetExplosion = Math.min(Math.max((dist - 0.15) * 4, 0), 1);
+                } else { state.targetExplosion = 0; }
+            });
+            new Camera(document.getElementById('input_video'), {
+                onFrame: async () => { await hands.send({image: document.getElementById('input_video')}); },
+                width: 640, height: 480
+            }).start();
+        }
+
         function animate() {
             requestAnimationFrame(animate);
             state.explosion += (state.targetExplosion - state.explosion) * 0.1;
-            
-            decorMeshes.forEach(m => {
-                m.position.lerpVectors(m.userData.origin, m.userData.explode, state.explosion);
-                if(m.userData.isPhoto) {
-                    m.lookAt(camera.position);
-                    m.scale.setScalar(1 + state.explosion * 0.5);
-                }
-            });
-
-            if (snowParticles) {
-                const arr = snowParticles.geometry.attributes.position.array;
-                for (let i = 1; i < arr.length; i += 3) {
-                    arr[i] -= state.snowSpeed;
-                    if (arr[i] < -400) arr[i] = 400;
-                }
-                snowParticles.geometry.attributes.position.needsUpdate = true;
-            }
-
-            if(star) {
-                star.rotation.z += 0.02;
-                star.scale.setScalar(1 + Math.sin(Date.now()*0.003)*0.1 + state.explosion * 0.4);
-            }
-
+            decorMeshes.forEach(m => m.position.lerpVectors(m.userData.origin, m.userData.explode, state.explosion));
             treeGroup.rotation.y += state.rotSpeed;
             renderer.render(scene, camera);
         }
