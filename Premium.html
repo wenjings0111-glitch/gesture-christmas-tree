@@ -42,7 +42,6 @@
         button.tool-btn:hover { background: #333; }
         button.special-btn { background: var(--cyan); color: #000; font-weight: bold; border: none; }
         
-        /* 播放器样式 */
         .player-ctrl { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-top: 5px; }
         .player-ctrl button { padding: 8px; font-size: 10px; }
 
@@ -68,7 +67,7 @@
 
     <div id="start-screen">
         <h1 style="font-family:'Great Vibes'; font-size: 3.5rem; color:#ffd700; margin:0;">Winter Magic 3D</h1>
-        <p style="color:#666;">🖐 手掌左右移动控制树 | 🖐 张开爆炸绽放烟花 | ✊ 握拳还原</p>
+        <p style="color:#666;">🖐 手掌上下左右移动控制树 | 🖐 张开手爆炸 | ✊ 握拳还原</p>
         <button class="start-btn" id="btn-start">开启 3D 魔法之旅</button>
     </div>
 
@@ -148,11 +147,10 @@
             treeHeight: 85, 
             snowSpeed: 0.6,
             photoActive: false,
-            treeOffsetX: 0,
-            targetOffsetX: 0
+            treeOffsetX: 0, targetOffsetX: 0,
+            treeOffsetY: 0, targetOffsetY: 0
         };
 
-        // 初始化默认音乐
         audio = new Audio();
         audio.loop = false;
         audio.onended = () => { if(audio.loop) audio.play(); else nextTrack(); };
@@ -202,7 +200,6 @@
             scene.add(snowParticles);
         }
 
-        // 核心更新：螺旋圣诞树排列
         function refreshTree() {
             decorMeshes.forEach(m => { if(!m.userData.isPhoto) treeGroup.remove(m); });
             decorMeshes = decorMeshes.filter(m => m.userData.isPhoto);
@@ -211,7 +208,6 @@
             const h = state.treeHeight;
             const colors = [0xff4444, 0xffd700, 0x44ff44, 0x00e5ff, 0xff00ff, 0xffffff];
             
-            // 五角星
             const shape = new THREE.Shape();
             const outer = 7, inner = 3;
             for(let i=0; i<10; i++){
@@ -224,9 +220,8 @@
             star.position.y = h - h/3;
             treeGroup.add(star);
 
-            // 螺旋排列逻辑
             const numDecor = 450;
-            const spirals = 2; // 双螺旋
+            const spirals = 2; 
             for (let i = 0; i < numDecor; i++) {
                 const ratio = i / numDecor;
                 const angle = ratio * Math.PI * 18 * spirals; 
@@ -248,7 +243,6 @@
             }
         }
 
-        // 烟花逻辑
         function launchFirework() {
             const count = 50;
             const geo = new THREE.SphereGeometry(0.5, 6, 6);
@@ -267,7 +261,6 @@
             setTimeout(() => fireworkGroup.remove(group), 2000);
         }
 
-        // 音乐播放器功能
         function updateTrackDisplay() {
             const name = playlist[currentTrackIndex] ? playlist[currentTrackIndex].name : "未加载音乐";
             document.getElementById('track-name').innerText = name;
@@ -301,6 +294,39 @@
             document.getElementById('loop-btn').style.color = audio.loop ? "var(--cyan)" : "#888";
         }
 
+        // 核心更新：生成带文字相框的函数
+        function createPhotoFrame(texture) {
+            const frameGroup = new THREE.Group();
+            
+            // 1. 照片本体
+            const photo = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map: texture, side: THREE.DoubleSide}));
+            frameGroup.add(photo);
+
+            // 2. 金色边框
+            const borderGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(17, 17));
+            const borderMat = new THREE.LineBasicMaterial({color: 0xffd700, linewidth: 2});
+            const border = new THREE.LineSegments(borderGeo, borderMat);
+            frameGroup.add(border);
+
+            // 3. 'Sweet Memories' 文字看板
+            const canvas = document.createElement('canvas');
+            canvas.width = 256; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0,0,256,64);
+            ctx.font = 'bold 30px Arial';
+            ctx.fillStyle = '#ffd700';
+            ctx.textAlign = 'center';
+            ctx.fillText('Sweet Memories', 128, 45);
+            
+            const textTex = new THREE.CanvasTexture(canvas);
+            const textPlane = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), new THREE.MeshBasicMaterial({map: textTex, transparent: true}));
+            textPlane.position.y = -9.5;
+            frameGroup.add(textPlane);
+
+            return frameGroup;
+        }
+
         function setupUI() {
             document.getElementById('bg-select').onchange = (e) => document.body.className = 'bg-' + e.target.value;
             document.getElementById('speed-slider').oninput = (e) => {
@@ -318,7 +344,6 @@
             };
             document.getElementById('vol-slider').oninput = (e) => audio.volume = e.target.value;
             
-            // 音乐上传
             document.getElementById('music-in').onchange = (e) => {
                 const files = Array.from(e.target.files);
                 files.forEach(f => {
@@ -334,12 +359,20 @@
                 Array.from(e.target.files).forEach(file => {
                     const url = URL.createObjectURL(file);
                     const tex = new THREE.TextureLoader().load(url);
-                    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({map:tex, side:2}));
+                    
+                    // 使用新相框逻辑
+                    const frame = createPhotoFrame(tex);
                     const relY = 0.1 + Math.random() * 0.65;
-                    mesh.position.set(Math.random()*80-40, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*80-40);
-                    mesh.userData = { origin: mesh.position.clone(), explode: mesh.position.clone().normalize().multiplyScalar(190), isPhoto: true };
-                    treeGroup.add(mesh);
-                    decorMeshes.push(mesh);
+                    frame.position.set(Math.random()*100-50, (relY * state.treeHeight) - state.treeHeight/3, Math.random()*100-50);
+                    
+                    frame.userData = { 
+                        origin: frame.position.clone(), 
+                        explode: frame.position.clone().normalize().multiplyScalar(220), 
+                        isPhoto: true 
+                    };
+                    
+                    treeGroup.add(frame);
+                    decorMeshes.push(frame);
                     photoUrls.push(url);
                 });
             };
@@ -353,16 +386,16 @@
                 if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
                     const lm = results.multiHandLandmarks[0];
                     
-                    // 左右位置控制圣诞树
-                    const handX = lm[9].x; // 中指根部 X 坐标
-                    state.targetOffsetX = (handX - 0.5) * -300; // 映射到场景位移
+                    // 核心更新：XY双轴追踪
+                    const handX = lm[9].x; 
+                    const handY = lm[9].y; 
+                    state.targetOffsetX = (handX - 0.5) * -400; 
+                    state.targetOffsetY = (0.5 - handY) * 200; 
 
-                    // 爆炸识别
                     const distExplode = Math.hypot(lm[4].x - lm[20].x, lm[4].y - lm[20].y);
                     const prevExplosion = state.targetExplosion;
                     state.targetExplosion = Math.min(Math.max((distExplode - 0.15) * 4, 0), 1);
                     
-                    // 触发烟花：当张开瞬间触发
                     if(state.targetExplosion > 0.7 && prevExplosion <= 0.7) launchFirework();
 
                     const distPinch = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
@@ -377,6 +410,7 @@
                 } else {
                     state.targetExplosion = 0;
                     state.targetOffsetX = 0;
+                    state.targetOffsetY = 0;
                 }
             });
 
@@ -399,9 +433,11 @@
         function animate() {
             requestAnimationFrame(animate);
             state.explosion += (state.targetExplosion - state.explosion) * 0.1;
+            
+            // XY 平滑偏移应用
             state.treeOffsetX += (state.targetOffsetX - state.treeOffsetX) * 0.05;
-
-            treeGroup.position.x = state.treeOffsetX;
+            state.treeOffsetY += (state.targetOffsetY - state.treeOffsetY) * 0.05;
+            treeGroup.position.set(state.treeOffsetX, state.treeOffsetY, 0);
             
             decorMeshes.forEach(m => {
                 m.position.lerpVectors(m.userData.origin, m.userData.explode, state.explosion);
@@ -411,11 +447,10 @@
                 }
             });
 
-            // 烟花粒子动画
             fireworkGroup.children.forEach(group => {
                 group.children.forEach(p => {
                     p.position.add(p.userData.vel);
-                    p.userData.vel.y -= 0.02; // 重力
+                    p.userData.vel.y -= 0.02; 
                 });
             });
 
