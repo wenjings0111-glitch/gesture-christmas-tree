@@ -45,11 +45,11 @@
     <script>
         let scene, camera, renderer, particles, geometry;
         const PARTICLE_COUNT = 15000; // 粒子数量
-        let currentState = 'painting'; // 'painting', 'gather', 'scatter'
+        let currentState = 'painting'; // 'painting', 'gather', 'scatter', 'sphere'
         
         // 预设坐标数组
-        let posPainting, posGather, posScatter;
-        let colors;
+        let posPainting, posGather, posScatter, posSphere;
+        let baseColors, goldColors, silverColors;
 
         async function init() {
             // 1. 初始化场景
@@ -88,12 +88,15 @@
                     posPainting = new Float32Array(PARTICLE_COUNT * 3);
                     posGather = new Float32Array(PARTICLE_COUNT * 3);
                     posScatter = new Float32Array(PARTICLE_COUNT * 3);
-                    colors = new Float32Array(PARTICLE_COUNT * 3);
+                    posSphere = new Float32Array(PARTICLE_COUNT * 3);
+                    
+                    baseColors = new Float32Array(PARTICLE_COUNT * 3);
+                    goldColors = new Float32Array(PARTICLE_COUNT * 3);
+                    silverColors = new Float32Array(PARTICLE_COUNT * 3);
 
                     for (let i = 0; i < PARTICLE_COUNT; i++) {
                         const i3 = i * 3;
                         
-                        // 随机采样图片中的像素点
                         const x = Math.floor(Math.random() * canvas.width);
                         const y = Math.floor(Math.random() * canvas.height);
                         const pixelIndex = (y * canvas.width + x) * 4;
@@ -103,28 +106,44 @@
                         posPainting[i3 + 1] = -(y - canvas.height / 2) * 2.5;
                         posPainting[i3 + 2] = 0;
 
-                        // 状态2: 圣诞树/圆锥形态 (Gather)
+                        // 状态2: 金色圣诞树形态 (Gather)
                         const h = Math.random() * 300;
-                        const r = (300 - h) * 0.3;
-                        const angle = Math.random() * Math.PI * 2;
-                        posGather[i3] = Math.cos(angle) * r;
+                        const rTree = (300 - h) * 0.3;
+                        const angleTree = Math.random() * Math.PI * 2;
+                        posGather[i3] = Math.cos(angleTree) * rTree;
                         posGather[i3 + 1] = h - 150;
-                        posGather[i3 + 2] = Math.sin(angle) * r;
+                        posGather[i3 + 2] = Math.sin(angleTree) * rTree;
+
+                        // 新增状态: 银色圆球形态 (Sphere)
+                        const radius = 150;
+                        const u = Math.random();
+                        const v = Math.random();
+                        const thetaSphere = 2 * Math.PI * u;
+                        const phiSphere = Math.acos(2 * v - 1);
+                        posSphere[i3] = radius * Math.sin(phiSphere) * Math.cos(thetaSphere);
+                        posSphere[i3+1] = radius * Math.sin(phiSphere) * Math.sin(thetaSphere);
+                        posSphere[i3+2] = radius * Math.cos(phiSphere);
 
                         // 状态3: 散开态 (Scatter)
                         posScatter[i3] = (Math.random() - 0.5) * 1000;
                         posScatter[i3 + 1] = (Math.random() - 0.5) * 1000;
                         posScatter[i3 + 2] = (Math.random() - 0.5) * 1000;
 
-                        // 颜色：混合图片颜色与金色
+                        // 基础像素颜色
                         const r_col = imgData[pixelIndex] / 255;
                         const g_col = imgData[pixelIndex + 1] / 255;
                         const b_col = imgData[pixelIndex + 2] / 255;
-                        
-                        // 加入金银色调
-                        colors[i3] = r_col * 0.8 + 0.2; // 偏红/金
-                        colors[i3 + 1] = g_col * 0.7 + 0.15;
-                        colors[i3 + 2] = b_col * 0.5;
+                        baseColors[i3] = r_col; baseColors[i3+1] = g_col; baseColors[i3+2] = b_col;
+
+                        // 金属金色调
+                        goldColors[i3] = r_col * 0.8 + 0.2; 
+                        goldColors[i3 + 1] = g_col * 0.7 + 0.15;
+                        goldColors[i3 + 2] = b_col * 0.5;
+
+                        // 金属银色调
+                        silverColors[i3] = r_col * 0.4 + 0.5;
+                        silverColors[i3 + 1] = g_col * 0.4 + 0.5;
+                        silverColors[i3 + 2] = b_col * 0.4 + 0.6;
                     }
 
                     createParticleSystem();
@@ -136,9 +155,8 @@
 
         function createParticleSystem() {
             geometry = new THREE.BufferGeometry();
-            // 初始设为名画形态
             geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posPainting), 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(baseColors), 3));
 
             const material = new THREE.PointsMaterial({
                 size: 2.2,
@@ -153,14 +171,43 @@
         }
 
         function transformTo(type) {
-            if (currentState === type) return;
-            currentState = type;
+            // 如果是握拳(gather)，则随机选择 'gather'(树) 或 'sphere'(球)
+            let finalType = type;
+            if (type === 'gather') {
+                if (currentState === 'gather' || currentState === 'sphere') return;
+                finalType = Math.random() > 0.5 ? 'gather' : 'sphere';
+            } else if (currentState === type) {
+                return;
+            }
+
+            currentState = finalType;
             
-            const targetPos = type === 'gather' ? posGather : (type === 'scatter' ? posScatter : posPainting);
+            let targetPos, targetColor, statusText;
+            if (finalType === 'gather') {
+                targetPos = posGather;
+                targetColor = goldColors;
+                statusText = "模式: 金色圣诞树";
+            } else if (finalType === 'sphere') {
+                targetPos = posSphere;
+                targetColor = silverColors;
+                statusText = "模式: 银色行球";
+            } else if (finalType === 'scatter') {
+                targetPos = posScatter;
+                targetColor = baseColors;
+                statusText = "模式: 散开态";
+            } else {
+                targetPos = posPainting;
+                targetColor = baseColors;
+                statusText = "模式: 名画形态";
+            }
+
+            document.getElementById('status').innerText = statusText;
             const posAttr = geometry.attributes.position;
+            const colAttr = geometry.attributes.color;
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
+                // 位置过渡
                 gsap.to(posAttr.array, {
                     [i3]: targetPos[i3],
                     [i3+1]: targetPos[i3+1],
@@ -169,6 +216,14 @@
                     ease: "power2.inOut",
                     delay: Math.random() * 0.3,
                     onUpdate: () => posAttr.needsUpdate = true
+                });
+                // 颜色过渡
+                gsap.to(colAttr.array, {
+                    [i3]: targetColor[i3],
+                    [i3+1]: targetColor[i3+1],
+                    [i3+2]: targetColor[i3+2],
+                    duration: 1.5,
+                    onUpdate: () => colAttr.needsUpdate = true
                 });
             }
         }
@@ -185,7 +240,7 @@
                 
                 const landmarks = results.multiHandLandmarks[0];
                 
-                // 1. 手势检测：握拳 vs 张开
+                // 1. 手势检测：握拳判定
                 const fingerTips = [8, 12, 16, 20];
                 const wrist = landmarks[0];
                 let totalDist = 0;
@@ -195,12 +250,12 @@
                 });
 
                 if (totalDist < 0.6) {
-                    transformTo('gather');
+                    transformTo('gather'); // 这里会进入随机树/球逻辑
                 } else {
                     transformTo('scatter');
                 }
 
-                // 2. 相机控制：手部位置映射
+                // 2. 相机控制
                 const midX = landmarks[9].x - 0.5;
                 const midY = landmarks[9].y - 0.5;
                 gsap.to(camera.position, {
@@ -227,7 +282,11 @@
         function animate() {
             requestAnimationFrame(animate);
             if (particles) {
+                // 持续旋转增加动感
                 particles.rotation.y += 0.002;
+                if(currentState === 'sphere') {
+                    particles.rotation.x += 0.001; // 球体形态额外旋转
+                }
             }
             renderer.render(scene, camera);
         }
