@@ -6,14 +6,18 @@
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
         #container { width: 100vw; height: 100vh; }
+        
+        /* 视频容器添加过渡动画 */
         #video-container {
             position: absolute; bottom: 20px; right: 20px;
             width: 200px; height: 150px;
             border: 2px solid #d4af37; border-radius: 10px;
             overflow: hidden; transform: scaleX(-1); z-index: 100;
             box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+            transition: opacity 0.5s ease, transform 0.5s ease;
         }
         #input_video { width: 100%; height: 100%; object-fit: cover; }
+        
         #ui {
             position: absolute; top: 40px; left: 40px; color: #d4af37;
             pointer-events: none; z-index: 100;
@@ -21,9 +25,50 @@
         .label { font-size: 10px; letter-spacing: 4px; opacity: 0.6; text-transform: uppercase; }
         h1 { margin: 10px 0; font-weight: 200; font-size: 28px; letter-spacing: 2px; }
         #status { font-style: italic; color: #fff; text-shadow: 0 0 10px #d4af37; }
+
+        /* --- 新增：全能控制面板样式 --- */
+        #control-panel {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            color: #d4af37;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+        .panel-item { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        input[type="range"] { accent-color: #d4af37; cursor: pointer; }
+        .panel-btns { display: flex; gap: 8px; }
+        button {
+            background: rgba(212, 175, 55, 0.2);
+            border: 1px solid #d4af37;
+            color: #d4af37;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+        button:hover { background: rgba(212, 175, 55, 0.4); }
     </style>
 </head>
 <body>
+
+    <div id="control-panel">
+        <div class="panel-item">
+            <label>粒子速度</label>
+            <input type="range" id="speed-slider" min="0" max="0.02" step="0.001" value="0.002">
+        </div>
+        <div class="panel-btns">
+            <button onclick="toggleFullscreen()">全屏展示</button>
+            <button onclick="togglePreview()">📷 预览显示/隐藏</button>
+        </div>
+    </div>
 
     <div id="ui">
         <div class="label">Interactive Art Experience</div>
@@ -44,15 +89,17 @@
 
     <script>
         let scene, camera, renderer, particles, geometry;
-        const PARTICLE_COUNT = 15000; // 粒子数量
-        let currentState = 'painting'; // 'painting', 'gather', 'scatter', 'sphere'
+        const PARTICLE_COUNT = 15000;
+        let currentState = 'painting'; 
         
-        // 预设坐标数组
+        // --- 新增：控制变量 ---
+        let rotationSpeed = 0.002;
+        let isPreviewVisible = true;
+
         let posPainting, posGather, posScatter, posSphere;
         let baseColors, goldColors, silverColors;
 
         async function init() {
-            // 1. 初始化场景
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
             camera.position.z = 400;
@@ -62,14 +109,33 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('container').appendChild(renderer.domElement);
 
-            // 2. 加载图片并提取像素
             await loadPixelData("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/600px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
 
-            // 3. 设置手势识别
             initHands();
             
+            // 监听速度滑块
+            document.getElementById('speed-slider').oninput = (e) => {
+                rotationSpeed = parseFloat(e.target.value);
+            };
+
             animate();
             window.addEventListener('resize', onWindowResize);
+        }
+
+        // --- 新增：控制面板功能函数 ---
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+
+        function togglePreview() {
+            isPreviewVisible = !isPreviewVisible;
+            const container = document.getElementById('video-container');
+            container.style.opacity = isPreviewVisible ? "1" : "0";
+            container.style.pointerEvents = isPreviewVisible ? "auto" : "none";
         }
 
         async function loadPixelData(url) {
@@ -80,8 +146,8 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    canvas.width = 200; // 采样宽度
-                    canvas.height = 150; // 采样高度
+                    canvas.width = 200; 
+                    canvas.height = 150; 
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
@@ -96,17 +162,14 @@
 
                     for (let i = 0; i < PARTICLE_COUNT; i++) {
                         const i3 = i * 3;
-                        
                         const x = Math.floor(Math.random() * canvas.width);
                         const y = Math.floor(Math.random() * canvas.height);
                         const pixelIndex = (y * canvas.width + x) * 4;
 
-                        // 状态1: 名画形态 (Painting)
                         posPainting[i3] = (x - canvas.width / 2) * 2.5;
                         posPainting[i3 + 1] = -(y - canvas.height / 2) * 2.5;
                         posPainting[i3 + 2] = 0;
 
-                        // 状态2: 金色圣诞树形态 (Gather)
                         const h = Math.random() * 300;
                         const rTree = (300 - h) * 0.3;
                         const angleTree = Math.random() * Math.PI * 2;
@@ -114,7 +177,6 @@
                         posGather[i3 + 1] = h - 150;
                         posGather[i3 + 2] = Math.sin(angleTree) * rTree;
 
-                        // 新增状态: 银色圆球形态 (Sphere)
                         const radius = 150;
                         const u = Math.random();
                         const v = Math.random();
@@ -124,23 +186,19 @@
                         posSphere[i3+1] = radius * Math.sin(phiSphere) * Math.sin(thetaSphere);
                         posSphere[i3+2] = radius * Math.cos(phiSphere);
 
-                        // 状态3: 散开态 (Scatter)
                         posScatter[i3] = (Math.random() - 0.5) * 1000;
                         posScatter[i3 + 1] = (Math.random() - 0.5) * 1000;
                         posScatter[i3 + 2] = (Math.random() - 0.5) * 1000;
 
-                        // 基础像素颜色
                         const r_col = imgData[pixelIndex] / 255;
                         const g_col = imgData[pixelIndex + 1] / 255;
                         const b_col = imgData[pixelIndex + 2] / 255;
                         baseColors[i3] = r_col; baseColors[i3+1] = g_col; baseColors[i3+2] = b_col;
 
-                        // 金属金色调
                         goldColors[i3] = r_col * 0.8 + 0.2; 
                         goldColors[i3 + 1] = g_col * 0.7 + 0.15;
                         goldColors[i3 + 2] = b_col * 0.5;
 
-                        // 金属银色调
                         silverColors[i3] = r_col * 0.4 + 0.5;
                         silverColors[i3 + 1] = g_col * 0.4 + 0.5;
                         silverColors[i3 + 2] = b_col * 0.4 + 0.6;
@@ -171,7 +229,6 @@
         }
 
         function transformTo(type) {
-            // 如果是握拳(gather)，则随机选择 'gather'(树) 或 'sphere'(球)
             let finalType = type;
             if (type === 'gather') {
                 if (currentState === 'gather' || currentState === 'sphere') return;
@@ -184,21 +241,13 @@
             
             let targetPos, targetColor, statusText;
             if (finalType === 'gather') {
-                targetPos = posGather;
-                targetColor = goldColors;
-                statusText = "模式: 金色圣诞树";
+                targetPos = posGather; targetColor = goldColors; statusText = "模式: 金色圣诞树";
             } else if (finalType === 'sphere') {
-                targetPos = posSphere;
-                targetColor = silverColors;
-                statusText = "模式: 银色行球";
+                targetPos = posSphere; targetColor = silverColors; statusText = "模式: 银色行球";
             } else if (finalType === 'scatter') {
-                targetPos = posScatter;
-                targetColor = baseColors;
-                statusText = "模式: 散开态";
+                targetPos = posScatter; targetColor = baseColors; statusText = "模式: 散开态";
             } else {
-                targetPos = posPainting;
-                targetColor = baseColors;
-                statusText = "模式: 名画形态";
+                targetPos = posPainting; targetColor = baseColors; statusText = "模式: 名画形态";
             }
 
             document.getElementById('status').innerText = statusText;
@@ -207,23 +256,14 @@
 
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
-                // 位置过渡
                 gsap.to(posAttr.array, {
-                    [i3]: targetPos[i3],
-                    [i3+1]: targetPos[i3+1],
-                    [i3+2]: targetPos[i3+2],
-                    duration: 1.5,
-                    ease: "power2.inOut",
-                    delay: Math.random() * 0.3,
+                    [i3]: targetPos[i3], [i3+1]: targetPos[i3+1], [i3+2]: targetPos[i3+2],
+                    duration: 1.5, ease: "power2.inOut", delay: Math.random() * 0.3,
                     onUpdate: () => posAttr.needsUpdate = true
                 });
-                // 颜色过渡
                 gsap.to(colAttr.array, {
-                    [i3]: targetColor[i3],
-                    [i3+1]: targetColor[i3+1],
-                    [i3+2]: targetColor[i3+2],
-                    duration: 1.5,
-                    onUpdate: () => colAttr.needsUpdate = true
+                    [i3]: targetColor[i3], [i3+1]: targetColor[i3+1], [i3+2]: targetColor[i3+2],
+                    duration: 1.5, onUpdate: () => colAttr.needsUpdate = true
                 });
             }
         }
@@ -237,10 +277,7 @@
             hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
             hands.onResults((results) => {
                 if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
-                
                 const landmarks = results.multiHandLandmarks[0];
-                
-                // 1. 手势检测：握拳判定
                 const fingerTips = [8, 12, 16, 20];
                 const wrist = landmarks[0];
                 let totalDist = 0;
@@ -250,12 +287,11 @@
                 });
 
                 if (totalDist < 0.6) {
-                    transformTo('gather'); // 这里会进入随机树/球逻辑
+                    transformTo('gather');
                 } else {
                     transformTo('scatter');
                 }
 
-                // 2. 相机控制
                 const midX = landmarks[9].x - 0.5;
                 const midY = landmarks[9].y - 0.5;
                 gsap.to(camera.position, {
@@ -282,10 +318,10 @@
         function animate() {
             requestAnimationFrame(animate);
             if (particles) {
-                // 持续旋转增加动感
-                particles.rotation.y += 0.002;
+                // 使用控制变量控制速度
+                particles.rotation.y += rotationSpeed;
                 if(currentState === 'sphere') {
-                    particles.rotation.x += 0.001; // 球体形态额外旋转
+                    particles.rotation.x += rotationSpeed / 2;
                 }
             }
             renderer.render(scene, camera);
