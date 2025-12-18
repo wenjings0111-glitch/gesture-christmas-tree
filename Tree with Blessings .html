@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Luxury 3D Christmas - High Sensitivity Pro</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #02050a; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #video-container { 
+            position: absolute; bottom: 20px; right: 20px; width: 180px; height: 135px; 
+            border: 2px solid #ffd700; z-index: 100; border-radius: 12px; overflow: hidden; 
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+            transition: opacity 0.3s ease;
+            transform: scaleX(-1); /* 镜像预览 */
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+
+        /* --- 新增：祝福语样式 --- */
+        #blessing-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-family: "Microsoft YaHei", sans-serif;
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.5s ease, transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+    </style>
+</head>
+<body>
+
+<div id="video-container">
+    <video id="input_video"></video>
+</div>
+
+<div id="blessing-display"></div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/20.0.0/tween.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+let scene, camera, renderer, composer, treeGroup, star, snowParticles;
+let leafData = []; 
+let currentState = 'closed';
+
+// --- 新增：祝福语逻辑变量 ---
+const blessings = [
+    "🎄 圣诞快乐，万事胜意",
+    "✨ 愿你眼里有光，心中有爱",
+    "🎁 所有的好运都藏在雪花里",
+    "🌟 平安喜乐，岁岁年年",
+    "❄️ 愿世界温暖，你亦温柔",
+    "🧧 锦鲤附体，好运连连",
+    "🥂 生活如诗，未来可期",
+    "🧸 愿你童心不灭，梦想成真",
+    "🌙 好梦相伴，晚安如歌",
+    "🚀 奔向星辰大海，不负韶华"
+];
+let canShowBlessing = true; // 防止连续触发
+
+// --- 高灵敏度变量 ---
+let targetCameraPos = new THREE.Vector3(0, 30, 85);
+const lerpFactor = 0.15; 
+
+const settings = {
+    leafRotationSpeed: 0.005,
+    snowFallSpeed: 0.2,
+    starGlowIntensity: 2.5,
+    showCameraPreview: true,
+    scatterDistance: 150,
+    handSensitivity: 0.15,
+    // --- 新增：全屏切换功能 ---
+    toggleFullScreen: function() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+};
+
+function init() {
+    scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050a10, 0.008);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.copy(targetCameraPos);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.toneMapping = THREE.ReinhardToneMapping;
+    document.body.appendChild(renderer.domElement);
+
+    const renderPass = new RenderPass(scene, camera);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), settings.starGlowIntensity, 0.5, 0.1);
+    composer = new EffectComposer(renderer);
+    composer.addPass(renderPass);
+    composer.addPass(bloomPass);
+
+    treeGroup = new THREE.Group();
+
+    const leafCount = 3500;
+    const height = 55;
+    const baseRadius = 24;
+    const colors = [0xffd700, 0xe0e0e0, 0x00aaff, 0xff00ff];
+
+    for (let i = 0; i < leafCount; i++) {
+        const h = Math.random(); 
+        const yPos = h * height;
+        const currentRadius = (1 - h) * baseRadius;
+        const radius = Math.sqrt(Math.random()) * currentRadius;
+        const angle = Math.random() * Math.PI * 2;
+
+        const mat = new THREE.MeshStandardMaterial({ 
+            color: colors[i % 4], metalness: 1.0, roughness: 0.2,
+            emissive: colors[i % 4], emissiveIntensity: 0.15
+        });
+
+        const leaf = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 2.5), mat);
+        const originPos = new THREE.Vector3(Math.cos(angle) * radius, yPos, Math.sin(angle) * radius);
+        const scatterPos = new THREE.Vector3(
+            (Math.random() - 0.5) * settings.scatterDistance,
+            (Math.random() - 0.5) * settings.scatterDistance,
+            (Math.random() - 0.5) * settings.scatterDistance
+        );
+
+        leaf.position.copy(originPos);
+        leaf.lookAt(leaf.position.x * 1.5, yPos - 3, leaf.position.z * 1.5);
+        
+        treeGroup.add(leaf);
+        leafData.push({ mesh: leaf, origin: originPos, scatter: scatterPos, originRot: leaf.rotation.clone() });
+    }
+
+    const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.5, 3.5, 12, 32),
+        new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.4 })
+    );
+    trunk.position.y = -6;
+    treeGroup.add(trunk);
+
+    const starShape = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? 5 : 2.2;
+        const a = (i * Math.PI) / 5;
+        i === 0 ? starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r) : starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 1.8, bevelEnabled: true, bevelThickness: 0.5 });
+    star = new THREE.Mesh(starGeo, new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.05, emissive: 0xffd700, emissiveIntensity: 0.5 }));
+    star.position.set(0, 58, 0);
+    treeGroup.add(star);
+    scene.add(treeGroup);
+
+    const snowCount = 2000;
+    const snowGeo = new THREE.BufferGeometry();
+    const snowPos = new Float32Array(snowCount * 3);
+    for (let i = 0; i < snowCount * 3; i++) snowPos[i] = (Math.random() - 0.5) * 250;
+    snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+    const snowMat = new THREE.PointsMaterial({ size: 0.4, color: 0xffffff, transparent: true, opacity: 0.8 });
+    snowParticles = new THREE.Points(snowGeo, snowMat);
+    scene.add(snowParticles);
+
+    const p1 = new THREE.PointLight(0xffd700, 500, 150); p1.position.set(20, 50, 20); scene.add(p1);
+    const p2 = new THREE.PointLight(0x00ffff, 300, 150); p2.position.set(-20, 20, 20); scene.add(p2);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    initGUI(bloomPass);
+}
+
+// --- 新增：随机祝福语展示函数 ---
+function triggerBlessing() {
+    if (!canShowBlessing) return;
+    canShowBlessing = false;
+
+    const el = document.getElementById('blessing-display');
+    const randomText = blessings[Math.floor(Math.random() * blessings.length)];
+    
+    el.innerText = randomText;
+    el.style.opacity = "1";
+    el.style.transform = "translate(-50%, -50%) scale(1.1)";
+
+    // 2秒后消失
+    setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "translate(-50%, -50%) scale(1)";
+        // 祝福语完全消失后再允许下一次触发
+        setTimeout(() => { canShowBlessing = true; }, 1000);
+    }, 2500);
+}
+
+function initGUI(bloomPass) {
+    const gui = new dat.GUI();
+    // --- 在面板中添加全屏按钮 ---
+    gui.add(settings, 'toggleFullScreen').name('📺 全屏展示');
+    gui.add(settings, 'showCameraPreview').name('📷 显示预览').onChange(val => {
+        document.getElementById('video-container').style.opacity = val ? '1' : '0';
+    });
+    gui.add(settings, 'handSensitivity', 0.01, 0.5).name('手势灵敏度');
+    gui.add(settings, 'leafRotationSpeed', 0, 0.05).name('自转速度');
+    gui.add(settings, 'snowFallSpeed', 0, 1).name('下雪速度');
+    gui.add(settings, 'starGlowIntensity', 0, 5).name('辉光强度').onChange(v => bloomPass.strength = v);
+}
+
+function switchState(state) {
+    if (currentState === state) return;
+    currentState = state;
+    leafData.forEach((data) => {
+        new TWEEN.Tween(data.mesh.position)
+            .to(state === 'scattered' ? data.scatter : data.origin, 1200)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+        if (state === 'closed') {
+            new TWEEN.Tween(data.mesh.rotation).to({ x: data.originRot.x, y: data.originRot.y, z: data.originRot.z }, 1200).start();
+        }
+    });
+    new TWEEN.Tween(star.position).to({ y: state === 'scattered' ? 120 : 58 }, 1000).start();
+}
+
+const videoElement = document.getElementById('input_video');
+const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+
+hands.setOptions({ 
+    maxNumHands: 1, 
+    modelComplexity: 1, 
+    minDetectionConfidence: 0.6, 
+    minTrackingConfidence: 0.6 
+});
+
+hands.onResults((results) => {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        
+        const wrist = landmarks[0];
+        const fingerTips = [8, 12, 16, 20].map(i => landmarks[i]);
+        const avgDistance = fingerTips.reduce((acc, tip) => acc + Math.hypot(tip.x - wrist.x, tip.y - wrist.y), 0) / 4;
+        
+        const isFist = avgDistance < 0.25; 
+
+        if (isFist) {
+            switchState('closed');
+            targetCameraPos.set(0, 30, 85);
+            // --- 新增：抓取动作触发祝福语 ---
+            triggerBlessing();
+        } else {
+            switchState('scattered');
+            const handX = (landmarks[9].x - 0.5) * 2; 
+            const handY = (landmarks[9].y - 0.5) * 2; 
+            const handZ = landmarks[9].z; 
+
+            targetCameraPos.x = handX * 100;
+            targetCameraPos.y = -handY * 80 + 30;
+            targetCameraPos.z = 85 + (handZ * 200);
+        }
+    } else {
+        switchState('closed');
+        targetCameraPos.set(0, 30, 85);
+    }
+});
+
+const cameraUtils = new Camera(videoElement, {
+    onFrame: async () => { await hands.send({image: videoElement}); },
+    width: 1280, height: 720 
+});
+cameraUtils.start();
+
+function animate() {
+    requestAnimationFrame(animate);
+    TWEEN.update();
+    const time = Date.now() * 0.001;
+
+    camera.position.lerp(targetCameraPos, settings.handSensitivity);
+    camera.lookAt(0, 25, 0);
+
+    treeGroup.rotation.y += settings.leafRotationSpeed;
+    star.rotation.y += 0.04;
+    const scale = 1 + Math.sin(time * 3) * 0.15;
+    star.scale.set(scale, scale, scale);
+
+    const positions = snowParticles.geometry.attributes.position.array;
+    for (let i = 1; i < positions.length; i += 3) {
+        positions[i] -= settings.snowFallSpeed;
+        if (positions[i] < -100) positions[i] = 100;
+    }
+    snowParticles.geometry.attributes.position.needsUpdate = true;
+
+    composer.render();
+}
+
+init();
+animate();
+</script>
+</body>
+</html>
