@@ -15,7 +15,7 @@
         }
         video { width: 100%; height: 100%; object-fit: cover; }
 
-        /* --- 新增：祝福语样式 --- */
+        /* --- 祝福语样式 --- */
         #blessing-display {
             position: absolute;
             top: 50%;
@@ -66,7 +66,11 @@ let scene, camera, renderer, composer, treeGroup, star, snowParticles;
 let leafData = []; 
 let currentState = 'closed';
 
-// --- 新增：祝福语逻辑变量 ---
+// --- 新增：蛇形轨道变量 ---
+let snakeParticles;
+const snakeParticleCount = 800;
+
+// --- 祝福语逻辑变量 ---
 const blessings = [
     "🎄 圣诞快乐，万事胜意",
     "✨ 愿你眼里有光，心中有爱",
@@ -79,7 +83,7 @@ const blessings = [
     "🌙 好梦相伴，晚安如歌",
     "🚀 奔向星辰大海，不负韶华"
 ];
-let canShowBlessing = true; // 防止连续触发
+let canShowBlessing = true; 
 
 // --- 高灵敏度变量 ---
 let targetCameraPos = new THREE.Vector3(0, 30, 85);
@@ -92,7 +96,9 @@ const settings = {
     showCameraPreview: true,
     scatterDistance: 150,
     handSensitivity: 0.15,
-    // --- 新增：全屏切换功能 ---
+    // --- 新增：蛇形轨道控制 ---
+    snakeOrbitSpeed: 1.5,
+    // --- 全屏切换功能 ---
     toggleFullScreen: function() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen();
@@ -125,6 +131,7 @@ function init() {
 
     treeGroup = new THREE.Group();
 
+    // 树叶生成
     const leafCount = 3500;
     const height = 55;
     const baseRadius = 24;
@@ -156,6 +163,28 @@ function init() {
         treeGroup.add(leaf);
         leafData.push({ mesh: leaf, origin: originPos, scatter: scatterPos, originRot: leaf.rotation.clone() });
     }
+
+    // --- 新增：初始化银色蛇形轨道粒子 ---
+    const snakeGeo = new THREE.BufferGeometry();
+    const snakePos = new Float32Array(snakeParticleCount * 3);
+    const snakeColors = new Float32Array(snakeParticleCount * 3);
+    for(let i=0; i<snakeParticleCount; i++) {
+        // 初始设为0，animate中动态计算位置
+        snakePos[i*3] = 0; snakePos[i*3+1] = 0; snakePos[i*3+2] = 0;
+        // 银白色调
+        snakeColors[i*3] = 0.8; snakeColors[i*3+1] = 0.8; snakeColors[i*3+2] = 1.0;
+    }
+    snakeGeo.setAttribute('position', new THREE.BufferAttribute(snakePos, 3));
+    snakeGeo.setAttribute('color', new THREE.BufferAttribute(snakeColors, 3));
+    const snakeMat = new THREE.PointsMaterial({ 
+        size: 0.6, 
+        vertexColors: true, 
+        transparent: true, 
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending 
+    });
+    snakeParticles = new THREE.Points(snakeGeo, snakeMat);
+    treeGroup.add(snakeParticles);
 
     const trunk = new THREE.Mesh(
         new THREE.CylinderGeometry(2.5, 3.5, 12, 32),
@@ -198,34 +227,28 @@ function init() {
     initGUI(bloomPass);
 }
 
-// --- 新增：随机祝福语展示函数 ---
 function triggerBlessing() {
     if (!canShowBlessing) return;
     canShowBlessing = false;
-
     const el = document.getElementById('blessing-display');
     const randomText = blessings[Math.floor(Math.random() * blessings.length)];
-    
     el.innerText = randomText;
     el.style.opacity = "1";
     el.style.transform = "translate(-50%, -50%) scale(1.1)";
-
-    // 2秒后消失
     setTimeout(() => {
         el.style.opacity = "0";
         el.style.transform = "translate(-50%, -50%) scale(1)";
-        // 祝福语完全消失后再允许下一次触发
         setTimeout(() => { canShowBlessing = true; }, 1000);
     }, 2500);
 }
 
 function initGUI(bloomPass) {
     const gui = new dat.GUI();
-    // --- 在面板中添加全屏按钮 ---
     gui.add(settings, 'toggleFullScreen').name('📺 全屏展示');
     gui.add(settings, 'showCameraPreview').name('📷 显示预览').onChange(val => {
         document.getElementById('video-container').style.opacity = val ? '1' : '0';
     });
+    gui.add(settings, 'snakeOrbitSpeed', 0, 5).name('银龙转速');
     gui.add(settings, 'handSensitivity', 0.01, 0.5).name('手势灵敏度');
     gui.add(settings, 'leafRotationSpeed', 0, 0.05).name('自转速度');
     gui.add(settings, 'snowFallSpeed', 0, 1).name('下雪速度');
@@ -250,34 +273,25 @@ function switchState(state) {
 const videoElement = document.getElementById('input_video');
 const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
 
-hands.setOptions({ 
-    maxNumHands: 1, 
-    modelComplexity: 1, 
-    minDetectionConfidence: 0.6, 
-    minTrackingConfidence: 0.6 
-});
+hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
 
 hands.onResults((results) => {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
         const landmarks = results.multiHandLandmarks[0];
-        
         const wrist = landmarks[0];
         const fingerTips = [8, 12, 16, 20].map(i => landmarks[i]);
         const avgDistance = fingerTips.reduce((acc, tip) => acc + Math.hypot(tip.x - wrist.x, tip.y - wrist.y), 0) / 4;
-        
         const isFist = avgDistance < 0.25; 
 
         if (isFist) {
             switchState('closed');
             targetCameraPos.set(0, 30, 85);
-            // --- 新增：抓取动作触发祝福语 ---
             triggerBlessing();
         } else {
             switchState('scattered');
             const handX = (landmarks[9].x - 0.5) * 2; 
             const handY = (landmarks[9].y - 0.5) * 2; 
             const handZ = landmarks[9].z; 
-
             targetCameraPos.x = handX * 100;
             targetCameraPos.y = -handY * 80 + 30;
             targetCameraPos.z = 85 + (handZ * 200);
@@ -307,12 +321,32 @@ function animate() {
     const scale = 1 + Math.sin(time * 3) * 0.15;
     star.scale.set(scale, scale, scale);
 
+    // 下雪动画
     const positions = snowParticles.geometry.attributes.position.array;
     for (let i = 1; i < positions.length; i += 3) {
         positions[i] -= settings.snowFallSpeed;
         if (positions[i] < -100) positions[i] = 100;
     }
     snowParticles.geometry.attributes.position.needsUpdate = true;
+
+    // --- 新增：银色蛇形轨道动画逻辑 ---
+    const sPos = snakeParticles.geometry.attributes.position.array;
+    for (let i = 0; i < snakeParticleCount; i++) {
+        // 计算每个粒子的进度 (0 到 1)
+        const t = (i / snakeParticleCount);
+        const y = t * 55; // 从底部到顶部高度
+        const radius = (1 - t) * 25 + 2; // 随高度递减的半径
+        
+        // 蛇形旋转逻辑
+        const angle = t * Math.PI * 12 + time * settings.snakeOrbitSpeed; 
+        
+        sPos[i * 3] = Math.cos(angle) * radius;
+        sPos[i * 3 + 1] = y;
+        sPos[i * 3 + 2] = Math.sin(angle) * radius;
+    }
+    snakeParticles.geometry.attributes.position.needsUpdate = true;
+    // 闭合状态时轨道变暗或消失（可选效果控制）
+    snakeParticles.material.opacity = currentState === 'scattered' ? 0.3 : 0.9;
 
     composer.render();
 }
