@@ -75,7 +75,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
     <script>
-        let scene, camera, renderer, particles, geometry, treeStar;
+        let scene, camera, renderer, particles, geometry, treeStar, orbitParticles;
         const PARTICLE_COUNT = 15000;
         let currentState = 'painting'; 
         let rotationSpeed = 0.002;
@@ -95,8 +95,8 @@
 
             await loadPixelData("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/600px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg");
             
-            // --- 调整：在粒子系统创建后创建星星，并将其添加为子对象 ---
             createTreeStar();
+            createBlueOrbit(); // 创建单一椭圆轨道
 
             initHands();
             
@@ -120,23 +120,56 @@
                 color: 0xffd700, emissive: 0xaa8800, specular: 0xffffff, shininess: 100 
             });
             treeStar = new THREE.Mesh(starGeo, starMat);
-            
             const starLight = new THREE.PointLight(0xffd700, 1, 100);
             treeStar.add(starLight);
-            
-            // --- 修改：星星位置微调，并将其黏在粒子系统上 ---
             treeStar.position.set(0, 155, 0); 
             treeStar.visible = false; 
             treeStar.scale.set(0.001, 0.001, 0.001);
             
-            // 黏在一起的关键：将星星作为粒子的子对象
             particles.add(treeStar); 
             
             scene.add(new THREE.AmbientLight(0x404040));
-            // 添加主光源确保3D感
             const mainLight = new THREE.DirectionalLight(0xffffff, 1);
             mainLight.position.set(0, 0, 500);
             scene.add(mainLight);
+        }
+
+        function createBlueOrbit() {
+            const orbitPointsCount = 2500;
+            const orbitGeo = new THREE.BufferGeometry();
+            const orbitPos = new Float32Array(orbitPointsCount * 3);
+            const orbitCol = new Float32Array(orbitPointsCount * 3);
+
+            for (let i = 0; i < orbitPointsCount; i++) {
+                const angle = (i / orbitPointsCount) * Math.PI * 2;
+                // 椭圆参数：确保星球(半径130)被包裹在其中
+                const a = 240; // 长半轴
+                const b = 130; // 短半轴
+                
+                orbitPos[i * 3] = Math.cos(angle) * a + (Math.random() - 0.5) * 10;
+                orbitPos[i * 3 + 1] = (Math.random() - 0.5) * 15; // 轨道厚度
+                orbitPos[i * 3 + 2] = Math.sin(angle) * b + (Math.random() - 0.5) * 10;
+
+                // 纯粹的星夜像素蓝色调
+                orbitCol[i * 3] = 0.05; 
+                orbitCol[i * 3 + 1] = 0.15 + Math.random() * 0.2;
+                orbitCol[i * 3 + 2] = 0.5 + Math.random() * 0.4;
+            }
+
+            orbitGeo.setAttribute('position', new THREE.BufferAttribute(orbitPos, 3));
+            orbitGeo.setAttribute('color', new THREE.BufferAttribute(orbitCol, 3));
+
+            const orbitMat = new THREE.PointsMaterial({
+                size: 1.8,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0,
+                blending: THREE.AdditiveBlending
+            });
+
+            orbitParticles = new THREE.Points(orbitGeo, orbitMat);
+            // 物理黏合：作为星球的子对象，永不分离
+            particles.add(orbitParticles);
         }
 
         function toggleFullscreen() {
@@ -188,7 +221,7 @@
                         posGather[i3 + 1] = h - 150;
                         posGather[i3 + 2] = Math.sin(angleTree) * rTree;
 
-                        const radius = 150;
+                        const radius = 115; // 稍微缩小星球，完美嵌入轨道中心
                         const u = Math.random(), v = Math.random();
                         const thetaSphere = 2 * Math.PI * u, phiSphere = Math.acos(2 * v - 1);
                         posSphere[i3] = radius * Math.sin(phiSphere) * Math.cos(thetaSphere);
@@ -205,7 +238,7 @@
                         silverColors[i3] = r_col * 0.4 + 0.5; silverColors[i3 + 1] = g_col * 0.4 + 0.5; silverColors[i3 + 2] = b_col * 0.4 + 0.6;
                     }
                     createParticleSystem();
-                    document.getElementById('status').innerText = "星夜就绪。握拳召唤金色圣诞树！";
+                    document.getElementById('status').innerText = "加载成功。握拳召唤圣诞树，半握召唤银色星球。";
                     resolve();
                 };
             });
@@ -228,17 +261,21 @@
 
             currentState = finalType;
             
-            // --- 修改：星星随树一起平滑缩放 ---
             if (finalType === 'gather') {
                 treeStar.visible = true;
-                gsap.to(treeStar.scale, { x: 1, y: 1, z: 1, duration: 1.2, ease: "back.out(1.7)" });
+                gsap.to(treeStar.scale, { x: 1, y: 1, z: 1, duration: 1 });
+                gsap.to(orbitParticles.material, { opacity: 0, duration: 0.5 });
+            } else if (finalType === 'sphere') {
+                treeStar.visible = false;
+                gsap.to(orbitParticles.material, { opacity: 0.9, duration: 1 }); 
             } else {
-                gsap.to(treeStar.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.5, onComplete: () => treeStar.visible = false });
+                gsap.to(treeStar.scale, { x: 0.001, y: 0.001, z: 0.001, duration: 0.5 });
+                gsap.to(orbitParticles.material, { opacity: 0, duration: 0.5 });
             }
 
             let targetPos, targetColor, statusText;
             if (finalType === 'gather') { targetPos = posGather; targetColor = goldColors; statusText = "模式: 金色圣诞树"; }
-            else if (finalType === 'sphere') { targetPos = posSphere; targetColor = silverColors; statusText = "模式: 银色行球"; }
+            else if (finalType === 'sphere') { targetPos = posSphere; targetColor = silverColors; statusText = "模式: 银色星球 + 蓝色轨道"; }
             else if (finalType === 'scatter') { targetPos = posScatter; targetColor = baseColors; statusText = "模式: 散开态"; }
             else { targetPos = posPainting; targetColor = baseColors; statusText = "模式: 名画复原"; }
 
@@ -246,7 +283,7 @@
             const posAttr = geometry.attributes.position, colAttr = geometry.attributes.color;
             for (let i = 0; i < PARTICLE_COUNT; i++) {
                 const i3 = i * 3;
-                gsap.to(posAttr.array, { [i3]: targetPos[i3], [i3+1]: targetPos[i3+1], [i3+2]: targetPos[i3+2], duration: 1.5, ease: "power2.inOut", delay: Math.random() * 0.2, onUpdate: () => posAttr.needsUpdate = true });
+                gsap.to(posAttr.array, { [i3]: targetPos[i3], [i3+1]: targetPos[i3+1], [i3+2]: targetPos[i3+2], duration: 1.5, ease: "power2.inOut", onUpdate: () => posAttr.needsUpdate = true });
                 gsap.to(colAttr.array, { [i3]: targetColor[i3], [i3+1]: targetColor[i3+1], [i3+2]: targetColor[i3+2], duration: 1.5, onUpdate: () => colAttr.needsUpdate = true });
             }
         }
@@ -254,7 +291,13 @@
         function initHands() {
             const videoElement = document.getElementById('input_video');
             const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-            hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7 });
+            
+            hands.setOptions({ 
+                maxNumHands: 1, 
+                modelComplexity: 1, 
+                minDetectionConfidence: 0.5, 
+                minTrackingConfidence: 0.5 
+            });
             
             hands.onResults((results) => {
                 if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
@@ -266,11 +309,11 @@
                 let totalDist = 0;
                 fingerTips.forEach(idx => { totalDist += Math.hypot(landmarks[idx].x - wrist.x, landmarks[idx].y - wrist.y); });
 
-                if (totalDist < 0.6) transformTo('gather');
+                if (totalDist < 0.58) transformTo('gather');
                 else transformTo('scatter');
 
                 const midX = landmarks[9].x - 0.5, midY = landmarks[9].y - 0.5;
-                gsap.to(camera.position, { x: midX * 800, y: -midY * 800, duration: 0.8 });
+                gsap.to(camera.position, { x: midX * 600, y: -midY * 600, duration: 0.5 });
                 camera.lookAt(0, 0, 0);
             });
 
@@ -285,14 +328,15 @@
         function animate() {
             requestAnimationFrame(animate);
             if (particles) {
-                // --- 修改：在圣诞树模式下，保持正面显示 ---
                 if (currentState === 'gather') {
-                    // 让粒子系统缓慢转动增强立体感，但通过抵消让星星正面朝前
                     particles.rotation.y += rotationSpeed * 0.5;
-                    treeStar.rotation.y = -particles.rotation.y; // 关键：星星反向旋转，始终正对镜头
+                    treeStar.rotation.y = -particles.rotation.y; 
+                } else if (currentState === 'sphere') {
+                    // 整体传动：星球与蓝色轨道同步旋转，绝不分离
+                    particles.rotation.y += rotationSpeed * 2;
+                    particles.rotation.z += rotationSpeed * 0.5;
                 } else {
                     particles.rotation.y += rotationSpeed;
-                    if(currentState === 'sphere') particles.rotation.x += rotationSpeed / 2;
                 }
             }
             renderer.render(scene, camera);
